@@ -98,7 +98,6 @@ type ICreator interface {
 		namespace string,
 		host *api.Host,
 		spec *core.PersistentVolumeClaimSpec,
-		template *api.VolumeClaimTemplate,
 	) *core.PersistentVolumeClaim
 	TagPVC(
 		pvc *core.PersistentVolumeClaim,

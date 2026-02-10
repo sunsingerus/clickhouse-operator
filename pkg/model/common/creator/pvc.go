@@ -28,7 +28,6 @@ func (c *Creator) CreatePVC(
 	namespace string,
 	host *api.Host,
 	spec *core.PersistentVolumeClaimSpec,
-	template *api.VolumeClaimTemplate,
 ) *core.PersistentVolumeClaim {
 	persistentVolumeClaim := core.PersistentVolumeClaim{
 		TypeMeta: meta.TypeMeta{
@@ -44,7 +43,7 @@ func (c *Creator) CreatePVC(
 			//  we are close to proper disk inheritance
 			// Right now we hit the following error:
 			// "Forbidden: updates to StatefulSet spec for fields other than 'replicas', 'template', and 'updateStrategy' are forbidden"
-			Labels:      c.macro.Scope(host).Map(c.tagger.Label(interfaces.LabelNewPVC, host, template)),
+			Labels:      c.macro.Scope(host).Map(c.tagger.Label(interfaces.LabelNewPVC, host, false)),
 			Annotations: c.macro.Scope(host).Map(c.tagger.Annotate(interfaces.AnnotateNewPVC, host)),
 			// Incompatible with PV retain policy
 			// Fails PV retain policy test (19)

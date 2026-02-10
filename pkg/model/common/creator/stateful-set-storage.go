@@ -127,7 +127,7 @@ func (c *Creator) stsSetupVolumeForPVCTemplate(
 		k8s.StatefulSetAppendVolumes(statefulSet, volume)
 	} else {
 		// For templates we should not specify namespace where PVC would be located
-		pvc := *c.CreatePVC(volumeClaimTemplate.Name, "", host, &volumeClaimTemplate.Spec, volumeClaimTemplate)
+		pvc := *c.CreatePVC(volumeClaimTemplate.Name, "", host, &volumeClaimTemplate.Spec)
 		k8s.StatefulSetAppendPersistentVolumeClaims(statefulSet, pvc)
 	}
 }

@@ -127,7 +127,7 @@ func (w *Reconciler) reconcilePVCFromVolumeMount(
 	pvcName := w.namer.Name(interfaces.NamePVCNameByVolumeClaimTemplate, host, volumeClaimTemplate)
 
 	// Which PVC are we going to reconcile
-	pvc, chopCreated, err := w.fetchOrCreatePVC(ctx, host, pvcNamespace, pvcName, volumeMount.Name, shouldCHOPCreatePVC, &volumeClaimTemplate.Spec, volumeClaimTemplate)
+	pvc, chopCreated, err := w.fetchOrCreatePVC(ctx, host, pvcNamespace, pvcName, volumeMount.Name, shouldCHOPCreatePVC, &volumeClaimTemplate.Spec)
 	if err != nil {
 		// Unable to fetch or create PVC correctly.
 		return nil
@@ -156,7 +156,7 @@ func (w *Reconciler) reconcilePVCFromVolumeMount(
 
 		// Refresh PVC model. Since PVC is just deleted refreshed model may not be fetched from the k8s,
 		// but can be provided by the operator still
-		pvc, _, _ = w.fetchOrCreatePVC(ctx, host, pvcNamespace, pvcName, volumeMount.Name, shouldCHOPCreatePVC, &volumeClaimTemplate.Spec, volumeClaimTemplate)
+		pvc, _, _ = w.fetchOrCreatePVC(ctx, host, pvcNamespace, pvcName, volumeMount.Name, shouldCHOPCreatePVC, &volumeClaimTemplate.Spec)
 		reconcileError = ErrPVCWithLostPVDeleted
 	}
 
@@ -189,7 +189,6 @@ func (w *Reconciler) fetchOrCreatePVC(
 	volumeMountName string,
 	operatorInCharge bool,
 	pvcSpec *core.PersistentVolumeClaimSpec,
-	template *api.VolumeClaimTemplate,
 ) (
 	pvc *core.PersistentVolumeClaim,
 	created bool,
@@ -221,7 +220,7 @@ func (w *Reconciler) fetchOrCreatePVC(
 				"PVC (%s/%s/%s/%s) model provided by the operator",
 				namespace, host.GetName(), volumeMountName, name,
 			)
-			pvc = w.task.Creator().CreatePVC(name, namespace, host, pvcSpec, template)
+			pvc = w.task.Creator().CreatePVC(name, namespace, host, pvcSpec)
 			return pvc, true, nil
 		} else {
 			// PVC is not available and the operator is not in charge of the PVC
