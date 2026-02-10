@@ -1,113 +1,58 @@
 #!/bin/bash
 CUR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+source "${CUR_DIR}/test_common.sh"
 
-OPERATOR_VERSION="${OPERATOR_VERSION:-"dev"}"
-OPERATOR_DOCKER_REPO="${OPERATOR_DOCKER_REPO:-"altinity/clickhouse-operator"}"
-OPERATOR_IMAGE="${OPERATOR_IMAGE:-"${OPERATOR_DOCKER_REPO}:${OPERATOR_VERSION}"}"
-METRICS_EXPORTER_DOCKER_REPO="${METRICS_EXPORTER_DOCKER_REPO:-"altinity/metrics-exporter"}"
-METRICS_EXPORTER_IMAGE="${METRICS_EXPORTER_IMAGE:-"${METRICS_EXPORTER_DOCKER_REPO}:${OPERATOR_VERSION}"}"
-IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY:-"IfNotPresent"}"
-OPERATOR_NAMESPACE="${OPERATOR_NAMESPACE:-"test"}"
-OPERATOR_INSTALL="${OPERATOR_INSTALL:-"yes"}"
-ONLY="${ONLY:-"*"}"
-MINIKUBE_RESET="${MINIKUBE_RESET:-""}"
-VERBOSITY="${VERBOSITY:-"2"}"
-# We may want run all tests to the end ignoring failed tests in the process
-RUN_ALL="${RUN_ALL:-""}"
-
-# Possible options are:
-#  1. operator
-#  2. keeper
-#  3. metrics
+# Possible options: operator, keeper, metrics
+# Can be set via env var for non-interactive use: WHAT=metrics ./run_tests_local.sh
 WHAT="${WHAT}"
 
-# Possible options are:
-#  1. replace
-#  2. apply
-KUBECTL_MODE="${KUBECTL_MODE:-"apply"}"
-
 #
-#
+# Interactive menu (or non-interactive if WHAT is already set)
 #
 function select_test_goal() {
     local specified_goal="${1}"
-    if [[ ! -z "${specified_goal}" ]]; then
-        echo "Having specified explicitly: ${specified_goal}"
-        return 0
-    else
-        echo "What would you like to start? Possible options:"
-        echo "  1     - test operator"
-        echo "  2     - test keeper"
-        echo "  3     - test metrics"
-        echo -n "Enter your choice (1, 2, 3): "
-        read COMMAND
-        # Trim EOL from the command received
-        COMMAND=$(echo "${COMMAND}" | tr -d '\n\t\r ')
-        case "${COMMAND}" in
-        "1")
-            echo "picking operator"
-            return 1
-            ;;
-        "2")
-            echo "piking keeper"
-            return 2
-            ;;
-        "3")
-            echo "picking metrics"
-            return 3
-            ;;
-        *)
-            echo "don't know what '${COMMAND}' is, so picking operator"
-            return 1
-            ;;
-        esac
+    if [[ -n "${specified_goal}" ]]; then
+        echo "Having specified explicitly: ${specified_goal}" >&2
+        echo "${specified_goal}"
+        return
     fi
-}
 
-#
-#
-#
-function goal_name() {
-    local goal_code=${1}
-    case "${goal_code}" in
-        "0")
-            echo "${WHAT}"
-            ;;
-        "1")
-            echo "operator"
-            ;;
-        "2")
-            echo "keeper"
-            ;;
-        "3")
-            echo "metrics"
-            ;;
+    echo "What would you like to start? Possible options:" >&2
+    echo "  1     - test operator" >&2
+    echo "  2     - test keeper" >&2
+    echo "  3     - test metrics" >&2
+    echo -n "Enter your choice (1, 2, 3): " >&2
+    read COMMAND
+    COMMAND=$(echo "${COMMAND}" | tr -d '\n\t\r ')
+    case "${COMMAND}" in
+        "1") echo "operator" ;;
+        "2") echo "keeper" ;;
+        "3") echo "metrics" ;;
         *)
+            echo "don't know what '${COMMAND}' is, so picking operator" >&2
             echo "operator"
             ;;
     esac
 }
 
-select_test_goal "${WHAT}"
-WHAT=$(goal_name $?)
+WHAT=$(select_test_goal "${WHAT}")
 
-echo "Provided command is: ${WHAT}"
-echo -n "Which means we are going to "
+# Map test goal to dedicated local script
 case "${WHAT}" in
     "operator")
-        DEFAULT_EXECUTABLE="run_tests_operator.sh"
-        echo "test OPERATOR"
+        LOCAL_SCRIPT="run_tests_operator_local.sh"
+        echo "Selected: test OPERATOR"
         ;;
     "keeper")
-        DEFAULT_EXECUTABLE="run_tests_keeper.sh"
-        echo "test KEEPER"
+        LOCAL_SCRIPT="run_tests_keeper_local.sh"
+        echo "Selected: test KEEPER"
         ;;
     "metrics")
-        DEFAULT_EXECUTABLE="run_tests_metrics.sh"
-        echo "test METRICS"
+        LOCAL_SCRIPT="run_tests_metrics_local.sh"
+        echo "Selected: test METRICS"
         ;;
     *)
-        echo "exit because I do not know what '${WHAT}' is"
+        echo "Unknown test type: '${WHAT}', exiting"
         exit 1
         ;;
 esac
@@ -117,49 +62,5 @@ echo "Press <ENTER> to start test immediately (if you agree with specified optio
 echo "In case no input provided tests would start in ${TIMEOUT} seconds automatically"
 read -t ${TIMEOUT}
 
-EXECUTABLE="${EXECUTABLE:-"${DEFAULT_EXECUTABLE}"}"
-MINIKUBE_PRELOAD_IMAGES="${MINIKUBE_PRELOAD_IMAGES:-""}"
-
-if [[ ! -z "${MINIKUBE_RESET}" ]]; then
-    SKIP_K9S="yes" ./run_minikube_reset.sh
-fi
-
-if [[ ! -z "${MINIKUBE_PRELOAD_IMAGES}" ]]; then
-    echo "pre-load images into minikube"
-    IMAGES="
-    clickhouse/clickhouse-server:23.3
-    clickhouse/clickhouse-server:23.8
-    clickhouse/clickhouse-server:24.3
-    clickhouse/clickhouse-server:24.8
-    clickhouse/clickhouse-server:25.3
-    clickhouse/clickhouse-server:latest
-    altinity/clickhouse-server:24.8.14.10459.altinitystable
-    docker.io/zookeeper:3.8.4
-    "
-    for image in ${IMAGES}; do
-        docker pull -q ${image} && \
-        echo "pushing to minikube" && \
-        minikube image load ${image} --overwrite=false --daemon=true
-    done
-    echo "images pre-loaded"
-fi
-
-#
-# Build images and run tests
-#
-echo "Build" && \
-VERBOSITY="${VERBOSITY}" ${CUR_DIR}/../../dev/image_build_all_dev.sh && \
-echo "Load images" && \
-minikube image load "${OPERATOR_IMAGE}" && \
-minikube image load "${METRICS_EXPORTER_IMAGE}" && \
-echo "Images prepared" && \
-OPERATOR_DOCKER_REPO="${OPERATOR_DOCKER_REPO}" \
-METRICS_EXPORTER_DOCKER_REPO="${METRICS_EXPORTER_DOCKER_REPO}" \
-OPERATOR_VERSION="${OPERATOR_VERSION}" \
-IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY}" \
-OPERATOR_NAMESPACE="${OPERATOR_NAMESPACE}" \
-OPERATOR_INSTALL="${OPERATOR_INSTALL}" \
-ONLY="${ONLY}" \
-KUBECTL_MODE="${KUBECTL_MODE}" \
-RUN_ALL="${RUN_ALL}" \
-"${CUR_DIR}/${EXECUTABLE}"
+# Dispatch to the dedicated local script
+"${CUR_DIR}/${LOCAL_SCRIPT}"
