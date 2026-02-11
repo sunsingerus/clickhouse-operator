@@ -6,6 +6,10 @@ source "${CUR_DIR}/test_common.sh"
 # Can be set via env var for non-interactive use: WHAT=metrics ./run_tests_local.sh
 WHAT="${WHAT}"
 
+# Repeat mode: "success" = repeat until success, "failure" = repeat until failure, empty = single run
+# Usage: REPEAT_UNTIL=success ./run_tests_local.sh
+REPEAT_UNTIL="${REPEAT_UNTIL:-""}"
+
 #
 # Interactive menu (or non-interactive if WHAT is already set)
 #
@@ -62,5 +66,44 @@ echo "Press <ENTER> to start test immediately (if you agree with specified optio
 echo "In case no input provided tests would start in ${TIMEOUT} seconds automatically"
 read -t ${TIMEOUT}
 
-# Dispatch to the dedicated local script
-"${CUR_DIR}/${LOCAL_SCRIPT}"
+# Dispatch to the dedicated local script, with optional repeat mode
+case "${REPEAT_UNTIL}" in
+    "success")
+        # Repeat until tests pass
+        start=$(date)
+        run=1
+        echo "start run ${run}"
+        until "${CUR_DIR}/${LOCAL_SCRIPT}"; do
+            echo "run number ${run} failed"
+            echo "-------------------------------------------"
+            run=$((run+1))
+            echo "start run ${run}"
+        done
+        end=$(date)
+        echo "============================================="
+        echo "Run number ${run} succeeded"
+        echo "start time: ${start}"
+        echo "end   time: ${end}"
+        ;;
+    "failure")
+        # Repeat until tests fail
+        start=$(date)
+        run=1
+        echo "start run ${run}"
+        while "${CUR_DIR}/${LOCAL_SCRIPT}"; do
+            echo "run number ${run} completed successfully"
+            echo "-------------------------------------------"
+            run=$((run+1))
+            echo "start run ${run}"
+        done
+        end=$(date)
+        echo "============================================="
+        echo "Run number ${run} failed"
+        echo "start time: ${start}"
+        echo "end   time: ${end}"
+        ;;
+    *)
+        # Single run
+        "${CUR_DIR}/${LOCAL_SCRIPT}"
+        ;;
+esac
