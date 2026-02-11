@@ -2,11 +2,17 @@
 CUR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 source "${CUR_DIR}/test_common.sh"
 
-# Possible options: operator, keeper, metrics
+# Test component select options:
+# - operator
+# - keeper
+# - metrics
 # Can be set via env var for non-interactive use: WHAT=metrics ./run_tests_local.sh
 WHAT="${WHAT}"
 
-# Repeat mode: "success" = repeat until success, "failure" = repeat until failure, empty = single run
+# Repeat mode options:
+# - success = repeat until success
+# - failure = repeat until failure
+# - not specified / empty = single run
 # Usage: REPEAT_UNTIL=success ./run_tests_local.sh
 REPEAT_UNTIL="${REPEAT_UNTIL:-""}"
 
