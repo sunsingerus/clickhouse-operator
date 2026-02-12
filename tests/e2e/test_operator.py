@@ -5449,6 +5449,7 @@ def test_020000(self):
     chk = yaml_manifest.get_name(util.get_full_path(chk_manifest))
 
     with Given("Install CHK"):
+        kubectl.apply(util.get_full_path("manifests/chk/test-020000-chk-sa.yaml"))
         kubectl.create_and_check(
             manifest=chk_manifest, kind="chk",
             check={
@@ -5462,6 +5463,10 @@ def test_020000(self):
     print("Created objects:")
     for o in chk_objects:
         print(o)
+
+    with Then("Service account should be set"):
+        chk_pod_spec = kubectl.get_chk_pod_spec(chk)
+        assert chk_pod_spec["serviceAccountName"] == "test-020000-chk-sa"
 
     with And("There should be a service for cluster a cluster"):
         kubectl.check_service(f"keeper-{chk}-service", "ClusterIP", headless = True)
