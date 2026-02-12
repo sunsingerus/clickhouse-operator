@@ -33,6 +33,9 @@ const (
 	// Pattern for string path used in <distributed_ddl><path>XXX</path></distributed_ddl>
 	DistributedDDLPathPattern = "/clickhouse/%s/task_queue/ddl"
 
+	// Pattern for string path used in <distributed_ddl><replicas_path>XXX</replicas_path></distributed_ddl>
+	DistributedDDLReplicasPathPattern = "/clickhouse/%s/task_queue/replicas"
+
 	// Special auto-generated clusters. Each of these clusters lay over all replicas in CHI
 	// 1. Cluster with one shard and all replicas. Used to duplicate data over all replicas.
 	// 2. Cluster with all shards (1 replica). Used to gather/scatter data over all replicas.
@@ -178,6 +181,7 @@ func (c *Generator) getHostZookeeper(host *chi.Host) string {
 	//      <profile>X</profile>
 	util.Iline(b, 4, "<distributed_ddl>")
 	util.Iline(b, 4, "    <path>%s</path>", c.getDistributedDDLPath())
+	util.Iline(b, 4, "    <replicas_path>%s</replicas_path>", c.getDistributedDDLReplicasPath())
 	if c.opts.DistributedDDL.HasProfile() {
 		util.Iline(b, 4, "    <profile>%s</profile>", c.opts.DistributedDDL.GetProfile())
 	}
@@ -543,6 +547,11 @@ func (c *Generator) getHostHostnameAndPorts(host *chi.Host) string {
 // getDistributedDDLPath returns string path used in <distributed_ddl><path>XXX</path></distributed_ddl>
 func (c *Generator) getDistributedDDLPath() string {
 	return fmt.Sprintf(DistributedDDLPathPattern, c.cr.GetName())
+}
+
+// getDistributedDDLReplicasPath returns string path used in <distributed_ddl><replicas_path>XXX</replicas_path></distributed_ddl>
+func (c *Generator) getDistributedDDLReplicasPath() string {
+	return fmt.Sprintf(DistributedDDLReplicasPathPattern, c.cr.GetName())
 }
 
 // getRemoteServersReplicaHostname returns hostname (podhostname + service or FQDN) for "remote_servers.xml"
