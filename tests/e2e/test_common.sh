@@ -26,6 +26,7 @@ ONLY="${ONLY:-"*"}"
 VERBOSITY="${VERBOSITY:-"2"}"
 RUN_ALL="${RUN_ALL:-""}"
 KUBECTL_MODE="${KUBECTL_MODE:-"apply"}"
+NO_CLEANUP="${NO_CLEANUP:-""}"
 
 # Minikube control
 MINIKUBE_RESET="${MINIKUBE_RESET:-""}"
@@ -85,6 +86,7 @@ function common_export_test_env() {
     export OPERATOR_NAMESPACE
     export OPERATOR_INSTALL
     export IMAGE_PULL_POLICY
+    export NO_CLEANUP
 }
 
 # Reset minikube cluster if MINIKUBE_RESET is set
@@ -132,5 +134,6 @@ function common_run_test_script() {
     ONLY="${ONLY}" \
     KUBECTL_MODE="${KUBECTL_MODE}" \
     RUN_ALL="${RUN_ALL}" \
+    NO_CLEANUP="${NO_CLEANUP}" \
     "${COMMON_DIR}/${script}"
 }
