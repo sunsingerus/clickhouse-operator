@@ -416,6 +416,15 @@ func (n *Normalizer) normalizeReconcileStatefulSet(sts chi.ReconcileStatefulSet)
 func (n *Normalizer) normalizeReconcileHost(rh chi.ReconcileHost) chi.ReconcileHost {
 	// Normalize
 	rh = rh.Normalize(types.NewStringBool(false), true)
+	// Enable startup probe wait so operator waits for each pod's Keeper process
+	// to start (ruok/imok) before proceeding to the next host.
+	// This prevents simultaneous pod restarts that would cause quorum loss.
+	// Readiness wait stays false to avoid deadlock on fresh clusters
+	// where Raft quorum doesn't exist yet.
+	if rh.Wait.Probes == nil {
+		rh.Wait.Probes = &chi.ReconcileHostWaitProbes{}
+	}
+	rh.Wait.Probes.Startup = types.NewStringBool(true)
 	return rh
 }
 
