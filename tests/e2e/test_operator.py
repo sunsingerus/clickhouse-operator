@@ -5452,7 +5452,8 @@ def test_020000(self):
     with Given("Install CHK"):
         kubectl.apply(util.get_full_path("manifests/chk/test-020000-chk-sa.yaml"))
         kubectl.create_and_check(
-            manifest=chk_manifest, kind="chk",
+            manifest=chk_manifest,
+            kind="chk",
             check={
                 "pod_count": 1,
                 "pdb": {"keeper": 0},
@@ -5470,13 +5471,13 @@ def test_020000(self):
         assert chk_pod_spec["serviceAccountName"] == "test-020000-chk-sa"
 
     with And("There should be a service for cluster a cluster"):
-        kubectl.check_service(f"keeper-{chk}-service", "ClusterIP", headless = True)
+        kubectl.check_service(f"keeper-{chk}-service", "ClusterIP", headless=True)
 
     with And("There should be a service for first replica"):
-        kubectl.check_service(f"keeper-{chk}-0", "ClusterIP", headless = True)
+        kubectl.check_service(f"keeper-{chk}-0", "ClusterIP", headless=True)
 
     with And("There should be a PVC"):
-        assert kubectl.get_count("pvc", label = f"-l clickhouse-keeper.altinity.com/chk={chk}") == 1
+        assert kubectl.get_count("pvc", label=f"-l clickhouse-keeper.altinity.com/chk={chk}") == 1
 
     kubectl.delete_chk(chk)
 
