@@ -74,7 +74,7 @@ def delete_kind(kind, name, ns=None, ok_to_fail=False, shell=None):
 
 def delete_chi(chi, ns=None, wait=True, ok_undeleted = False, ok_to_fail=False, shell=None):
     if settings.no_cleanup:
-        note(f"NO_CLEANUP is set, skipping delete_chi: {chi}")
+        print(f"NO_CLEANUP is set, skipping delete_chi: {chi}")
         return
     delete_kind("chi", chi, ns=ns, ok_to_fail=ok_to_fail, shell=shell)
     if wait:
@@ -102,7 +102,7 @@ def delete_chi(chi, ns=None, wait=True, ok_undeleted = False, ok_to_fail=False, 
 
 def delete_chk(chk, ns=None, wait=True, ok_to_fail=False, shell=None):
     if settings.no_cleanup:
-        note(f"NO_CLEANUP is set, skipping delete_chk: {chk}")
+        print(f"NO_CLEANUP is set, skipping delete_chk: {chk}")
         return
     delete_kind("chk", chk, ns=ns, ok_to_fail=ok_to_fail, shell=shell)
 
