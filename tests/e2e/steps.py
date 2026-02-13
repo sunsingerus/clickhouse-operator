@@ -47,7 +47,7 @@ def create_test_namespace(self, force=False):
 @TestStep(Finally)
 def delete_test_namespace(self):
     if settings.no_cleanup:
-        note(f"NO_CLEANUP is set, skipping namespace deletion: {self.context.test_namespace}")
+        print(f"NO_CLEANUP is set, skipping namespace deletion: {self.context.test_namespace}")
         return
     shell = get_shell()
     self.context.shell = shell

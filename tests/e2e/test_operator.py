@@ -5464,7 +5464,7 @@ def test_020000(self):
     for o in chk_objects:
         print(o)
 
-    with And("There should be a service for cluster a cluster"):
+    with And("There should be a service for a cluster"):
         kubectl.check_service(f"keeper-{chk}-service", "ClusterIP", headless = True)
 
     with And("There should be a service for first replica"):
@@ -5503,18 +5503,19 @@ def test_020001(self):
             objects[ch_kind] = kubectl.get_obj_names_grepped("pod,service,sts,pvc,cm,pdb,secret", grep=ch_name)
             print(*objects[ch_kind], sep='\n')
 
-        if ch_kind == 'chi':
-            kubectl.delete_chi(ch_name)
-        else:
-            kubectl.delete_chk(ch_name)
+        with When(f"Delete {ch_kind}"):
+            if ch_kind == 'chi':
+                kubectl.delete_chi(ch_name)
+            else:
+                kubectl.delete_chk(ch_name)
 
     with Then("There should not be objects with overlapped names"):
         overlap = list(set(objects['chi']) & set(objects['chk']))
-        if len(overlap)>0:
+        if len(overlap) > 0:
             print("Overlapped objects:")
             print(*overlap, sep='\n')
 
-        assert len(overlap) == 0
+        assert len(overlap) == 0, f"{len(overlap)} overlapping resource(s):\n" + "\n".join(f"  {o}" for o in overlap)
 
     with Finally("I clean up"):
         delete_test_namespace()
