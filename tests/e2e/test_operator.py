@@ -5508,7 +5508,7 @@ def test_020001(self):
         else:
             kubectl.delete_chk(ch_name)
 
-    with Then("There should not objects with overallped names"):
+    with Then("There should not be objects with overlapped names"):
         overlap = list(set(objects['chi']) & set(objects['chk']))
         if len(overlap)>0:
             print("Overlapped objects:")
