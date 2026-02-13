@@ -80,4 +80,6 @@ prometheus_scrape_interval = 5
 
 minio_version = "latest"
 
+no_cleanup = True if "NO_CLEANUP" in os.environ else False
+
 step_by_step = True if "STEP" in os.environ else False

@@ -467,6 +467,7 @@ def test_010008_3(self):
     with Finally("I clean up"):
         delete_test_namespace()
 
+
 @TestCheck
 def test_operator_upgrade(self, manifest, service, version_from, version_to=None, shell=None):
     if version_to is None:
