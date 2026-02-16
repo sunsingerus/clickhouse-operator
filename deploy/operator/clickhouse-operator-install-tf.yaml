@@ -33,6 +33,10 @@ spec:
       served: true
       storage: true
       additionalPrinterColumns:
+        - name: status
+          type: string
+          description: Resource status
+          jsonPath: .status.status
         - name: version
           type: string
           description: Operator version
@@ -56,10 +60,6 @@ spec:
           description: TaskID
           priority: 1 # show in wide view
           jsonPath: .status.taskID
-        - name: status
-          type: string
-          description: Resource status
-          jsonPath: .status.status
         - name: hosts-completed
           type: integer
           description: Completed hosts count
@@ -1566,6 +1566,10 @@ spec:
       served: true
       storage: true
       additionalPrinterColumns:
+        - name: status
+          type: string
+          description: Resource status
+          jsonPath: .status.status
         - name: version
           type: string
           description: Operator version
@@ -1589,10 +1593,6 @@ spec:
           description: TaskID
           priority: 1 # show in wide view
           jsonPath: .status.taskID
-        - name: status
-          type: string
-          description: Resource status
-          jsonPath: .status.status
         - name: hosts-completed
           type: integer
           description: Completed hosts count
@@ -3664,6 +3664,10 @@ spec:
       served: true
       storage: true
       additionalPrinterColumns:
+        - name: status
+          type: string
+          description: Resource status
+          jsonPath: .status.status
         - name: version
           type: string
           description: Operator version
@@ -3687,10 +3691,6 @@ spec:
           description: TaskID
           priority: 1 # show in wide view
           jsonPath: .status.taskID
-        - name: status
-          type: string
-          description: Resource status
-          jsonPath: .status.status
         - name: hosts-completed
           type: integer
           description: Completed hosts count
@@ -5034,7 +5034,6 @@ data:
                 quotas:
                 settings:
                 files:
-    
           - version: ">= 23.5"
             spec:
               configuration:
