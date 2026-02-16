@@ -216,7 +216,6 @@ clickhouse:
             quotas:
             settings:
             files:
-
       - version: ">= 23.5"
         spec:
           configuration:
