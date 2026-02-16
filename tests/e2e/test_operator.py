@@ -5563,44 +5563,57 @@ def test_020003(self):
      when clickhouse-keeper defined with ClickHouseKeeperInstallation."""
 
     create_shell_namespace_clickhouse_template()
-    util.require_keeper(keeper_type="chk",
-                        keeper_manifest="clickhouse-keeper-3-node-for-test-only.yaml")
-    manifest = f"manifests/chi/test-049-clickhouse-keeper-upgrade.yaml"
-    chi = yaml_manifest.get_name(util.get_full_path(manifest))
+
+    chk_manifest = f"manifests/chk/test-020003-chk.yaml"
+    chk_manifest_upgraded = f"manifests/chk/test-020003-chk-2.yaml"
+    chi_manifest = f"manifests/chk/test-020003-chi-chk-upgrade.yaml"
+    chi = yaml_manifest.get_name(util.get_full_path(chi_manifest))
+    chk = yaml_manifest.get_name(util.get_full_path(chk_manifest))
+
     cluster = "default"
     keeper_version_from = "25.3"
     keeper_version_to = "25.8"
-    with Given("CHI with 2 replicas"):
+
+    with Given("CHK with 3 replicas"):
         kubectl.create_and_check(
-            manifest=manifest,
+            manifest=chk_manifest,
+            kind = "chk",
+            check={
+                "pod_count": 3,
+                "do_not_delete": 1,
+            },
+        )
+
+
+    with And("CHI with 2 replicas"):
+        kubectl.create_and_check(
+            manifest=chi_manifest,
             check={
                 "pod_count": 2,
                 "do_not_delete": 1,
             },
         )
 
-    with And("Make sure Keeper is ready"):
-        kubectl.wait_chk_status('clickhouse-keeper', 'Completed')
-
     check_replication(chi, {0, 1}, 1)
 
     with When(f"I check clickhouse-keeper version is {keeper_version_from}"):
         assert keeper_version_from in \
-               kubectl.get_field('pod', 'chk-clickhouse-keeper-test-0-0-0', '.spec.containers[0].image'), error()
+               kubectl.get_field('pod', 'chk-test-020003-chk-keeper-0-0-0', '.spec.containers[0].image'), error()
 
     with Then(f"I change keeper version to {keeper_version_to}"):
-        cmd = f"""patch chk clickhouse-keeper --type='json' --patch='[{{"op":"replace","path":"/spec/templates/podTemplates/0/spec/containers/0/image","value":"clickhouse/clickhouse-keeper:{keeper_version_to}"}}]'"""
-        kubectl.launch(cmd)
-
-    with Then("I wait CHK status 1"):
-        kubectl.wait_chk_status('clickhouse-keeper', 'InProgress')
-    with Then("I wait CHK status 2"):
-        kubectl.wait_chk_status('clickhouse-keeper', 'Completed')
+        kubectl.create_and_check(
+            manifest=chk_manifest_upgraded,
+            kind = "chk",
+            check={
+                "pod_count": 3,
+                "do_not_delete": 1,
+            },
+        )
 
     with When(f"I check clickhouse-keeper version is changed to {keeper_version_to}"):
-        kubectl.wait_field('pod', 'chk-clickhouse-keeper-test-0-0-0', '.spec.containers[0].image', f'clickhouse/clickhouse-keeper:{keeper_version_to}', retries=5)
-        kubectl.wait_field('pod', 'chk-clickhouse-keeper-test-0-1-0', '.spec.containers[0].image', f'clickhouse/clickhouse-keeper:{keeper_version_to}', retries=5)
-        kubectl.wait_field('pod', 'chk-clickhouse-keeper-test-0-2-0', '.spec.containers[0].image', f'clickhouse/clickhouse-keeper:{keeper_version_to}', retries=5)
+        kubectl.wait_field('pod', 'chk-test-020003-chk-keeper-0-0-0', '.spec.containers[0].image', f'clickhouse/clickhouse-keeper:{keeper_version_to}', retries=1)
+        kubectl.wait_field('pod', 'chk-test-020003-chk-keeper-0-1-0', '.spec.containers[0].image', f'clickhouse/clickhouse-keeper:{keeper_version_to}', retries=1)
+        kubectl.wait_field('pod', 'chk-test-020003-chk-keeper-0-2-0', '.spec.containers[0].image', f'clickhouse/clickhouse-keeper:{keeper_version_to}', retries=1)
 
     with Then("Wait for ClickHouse to connect to Keeper properly"):
         for attempt in retries(timeout=180, delay=5):
