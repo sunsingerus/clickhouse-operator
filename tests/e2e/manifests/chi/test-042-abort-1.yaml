@@ -14,9 +14,18 @@ spec:
         containers:
         - name: clickhouse-pod
           image: clickhouse/clickhouse-server:24.8
+    volumeClaimTemplates:
+    - name: data-volume-claim
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi
   defaults:
     templates:
       podTemplate: default
+      dataVolumeClaimTemplate: data-volume-claim
   configuration:
     clusters:
     - name: default
