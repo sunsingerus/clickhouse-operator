@@ -167,15 +167,13 @@ func (r *Reconciler) ReconcileStatefulSet(
 	switch {
 	case opts.ForceRecreate():
 		// Force recreate prevails over all other requests
-		_ = r.recreateStatefulSet(ctx, host, register, opts)
-	default:
-		// We have (or had in the past) StatefulSet - try to update|recreate it
-		err = r.updateStatefulSet(ctx, host, register, opts)
-	}
-
-	if apiErrors.IsNotFound(err) {
-		// StatefulSet not found - even during Update process - try to create it
+		err = r.recreateStatefulSet(ctx, host, register, opts)
+	case apiErrors.IsNotFound(err):
+		// StatefulSet not found in k8s — create it
 		err = r.createStatefulSet(ctx, host, register, opts)
+	default:
+		// We have StatefulSet - try to update|recreate it
+		err = r.updateStatefulSet(ctx, host, register, opts)
 	}
 
 	// Host has to know current StatefulSet and Pod
