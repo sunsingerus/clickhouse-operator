@@ -1038,6 +1038,13 @@ func (n *Normalizer) normalizeClusterLayoutShardsCountAndReplicasCount(clusterLa
 func (n *Normalizer) normalizeClusterReconcile(reconcile *chi.ClusterReconcile) *chi.ClusterReconcile {
 	reconcile = reconcile.Ensure()
 
+	// Inherit from CHI-level reconcile settings (fill empty values only)
+	if chiReconcile := n.req.GetTarget().GetSpecT().Reconcile; chiReconcile != nil {
+		reconcile.Runtime = reconcile.Runtime.MergeFrom(chiReconcile.Runtime, chi.MergeTypeFillEmptyValues)
+		reconcile.StatefulSet = reconcile.StatefulSet.MergeFrom(chiReconcile.StatefulSet)
+		reconcile.Host = reconcile.Host.MergeFrom(chiReconcile.Host)
+	}
+
 	reconcile.Runtime = n.normalizeReconcileRuntime(reconcile.Runtime)
 	reconcile.StatefulSet = n.normalizeReconcileStatefulSet(reconcile.StatefulSet)
 	reconcile.Host = n.normalizeReconcileHost(reconcile.Host)
