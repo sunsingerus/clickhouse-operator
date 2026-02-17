@@ -5442,7 +5442,6 @@ def test_010061(self):
 
 @TestScenario
 @Name("test_020000. Test Basic CHK functions")
-@Tags("NO_PARALLEL")
 def test_020000(self):
     create_shell_namespace_clickhouse_template()
 
@@ -5487,7 +5486,6 @@ def test_020000(self):
 
 @TestScenario
 @Name("test_020001. Test that Kubernetes objects between CHI and CHK does not overlap")
-@Tags("NO_PARALLEL")
 def test_020001(self):
     create_shell_namespace_clickhouse_template()
 
@@ -5531,7 +5529,6 @@ def test_020001(self):
 @Name("test_020002. Test CHI with CHK")
 @Requirements(RQ_SRS_026_ClickHouseOperator_CustomResource_Kind_ClickHouseKeeperInstallation("1.0"),
               RQ_SRS_026_ClickHouseOperator_CustomResource_ClickHouseKeeperInstallation_volumeClaimTemplates("1.0"))
-@Tags("NO_PARALLEL")
 def test_020002(self):
     """Check clickhouse-operator support ClickHouseKeeperInstallation with PVC in keeper manifest."""
 
@@ -5907,7 +5904,6 @@ def test_020005(self):
 
 @TestScenario
 @Name("test_020006. Test https://github.com/Altinity/clickhouse-operator/issues/1863")
-@Tags("NO_PARALLEL")
 def test_020006(self):
     create_shell_namespace_clickhouse_template()
 
@@ -5923,15 +5919,12 @@ def test_020006(self):
             }
         )
 
-    kubectl.delete_chk(chk)
-
     with Finally("I clean up"):
         delete_test_namespace()
 
 
 @TestScenario
 @Name("test_020007. Test fractional CPU requests/limits handling for CHK")
-@Tags("NO_PARALLEL")
 def test_020007(self):
     create_shell_namespace_clickhouse_template()
 
@@ -5960,7 +5953,48 @@ def test_020007(self):
 
     kubectl.force_chk_reconcile(chk, "reconcile2")
 
-    kubectl.delete_chk(chk)
+    with Finally("I clean up"):
+        delete_test_namespace()
+
+@TestScenario
+@Name("test_020008. Test FIPS versions are properly supported by both in CHI and CHK")
+@Tags("NO_PARALLEL")
+def test_020008(self):
+    create_shell_namespace_clickhouse_template()
+
+    chk_manifest = f"manifests/chk/test-020008-chk-fips.yaml"
+    chi_manifest = f"manifests/chk/test-020008-chi-fips.yaml"
+    chi = yaml_manifest.get_name(util.get_full_path(chi_manifest))
+    chk = yaml_manifest.get_name(util.get_full_path(chk_manifest))
+
+    cluster = "default"
+
+    with Given("CHK with FIPS versions"):
+        kubectl.create_and_check(
+            manifest=chk_manifest,
+            kind = "chk",
+            check={
+                "pod_count": 1,
+                "do_not_delete": 1,
+            },
+        )
+
+
+    with And("CHI with FIPS version"):
+        kubectl.create_and_check(
+            manifest=chi_manifest,
+            check={
+                "pod_count": 2,
+                "do_not_delete": 1,
+            },
+        )
+
+    with Then("Clickhouse version is a FIPS one"):
+        ver = clickhouse.query(chi, 'select version()')
+        print(ver)
+        assert "fips" in ver
+
+    check_replication(chi, {0, 1}, 1)
 
     with Finally("I clean up"):
         delete_test_namespace()
