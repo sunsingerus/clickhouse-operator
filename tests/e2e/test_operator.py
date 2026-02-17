@@ -5478,7 +5478,52 @@ def test_020000(self):
     with And("There should be a PVC"):
         assert kubectl.get_count("pvc", label=f"-l clickhouse-keeper.altinity.com/chk={chk}") == 1
 
-    kubectl.delete_chk(chk)
+    with When("Stop CHK"):
+        cmd = f'patch chk {chk} --type=\'json\' --patch=\'[{{"op":"add","path":"/spec/stop","value":"yes"}}]\''
+        kubectl.launch(cmd)
+        kubectl.wait_chk_status(chk, "InProgress")
+        kubectl.wait_chk_status(chk, "Completed")
+        with Then("STS should be there but no running pods"):
+            label = f"-l clickhouse-keeper.altinity.com/chk={chk}"
+            assert kubectl.get_count('sts', label = label) == 1
+            assert kubectl.get_count('pod', label = label) == 0
+
+    with When("Resume CHK"):
+        cmd = f'patch chk {chk} --type=\'json\' --patch=\'[{{"op":"replace","path":"/spec/stop","value":"no"}}]\''
+        kubectl.launch(cmd)
+        kubectl.wait_chk_status(chk, "InProgress")
+        kubectl.wait_chk_status(chk, "Completed")
+        with Then("Both STS and Pod should be up"):
+            label = f"-l clickhouse-keeper.altinity.com/chk={chk}"
+            assert kubectl.get_count('sts', label = label) == 1
+            assert kubectl.get_count('pod', label = label) == 1
+
+    with When("Suspend CHK"):
+        cmd = f'patch chk {chk} --type=\'json\' --patch=\'[{{"op":"add","path":"/spec/suspend","value":"yes"}}]\''
+        kubectl.launch(cmd)
+
+        with Then("Stop CHK one more time"):
+            cmd = f'patch chk {chk} --type=\'json\' --patch=\'[{{"op":"replace","path":"/spec/stop","value":"yes"}}]\''
+            kubectl.launch(cmd)
+            time.sleep(15) # wait in case there was some sync issue
+            kubectl.wait_chk_status(chk, "Completed")
+            with Then("Stop should be ignored. Both STS and Pod should be up"):
+                label = f"-l clickhouse-keeper.altinity.com/chk={chk}"
+                assert kubectl.get_count('sts', label = label) == 1
+                assert kubectl.get_count('pod', label = label) == 1
+
+    with When("Unsuspend CHK"):
+        cmd = f'patch chk {chk} --type=\'json\' --patch=\'[{{"op":"remove","path":"/spec/suspend"}}]\''
+        kubectl.launch(cmd)
+
+        with Then("Reconcile should trigger"):
+            kubectl.wait_chk_status(chk, "InProgress")
+            kubectl.wait_chk_status(chk, "Completed")
+
+        with Then("And CHK should be stopped"):
+            label = f"-l clickhouse-keeper.altinity.com/chk={chk}"
+            assert kubectl.get_count('sts', label = label) == 1
+            assert kubectl.get_count('pod', label = label) == 0
 
     with Finally("I clean up"):
         delete_test_namespace()
