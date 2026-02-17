@@ -44,7 +44,7 @@ func (w *worker) prepareMonitoring(cr *api.ClickHouseInstallation) {
 			WithEvent(cr, a.EventActionReconcile, a.EventReasonReconcileInProgress).
 			WithAction(cr).
 			M(cr).F().
-			Info("exclude CR from monitoring")
+			Info("exclude CHI from monitoring")
 		w.c.deleteWatch(cr)
 	} else {
 		// CR is NOT stopped, it is running
@@ -53,7 +53,7 @@ func (w *worker) prepareMonitoring(cr *api.ClickHouseInstallation) {
 			WithEvent(cr, a.EventActionReconcile, a.EventReasonReconcileInProgress).
 			WithAction(cr).
 			M(cr).F().
-			Info("ensure CR in monitoring")
+			Info("ensure CHI in monitoring")
 
 		if cr.HasAncestor() {
 			// Ensure CR is watched
@@ -83,6 +83,6 @@ func (w *worker) addToMonitoring(cr *api.ClickHouseInstallation) {
 		WithEvent(cr, a.EventActionReconcile, a.EventReasonReconcileInProgress).
 		WithAction(cr).
 		M(cr).F().
-		Info("add CR to monitoring")
+		Info("add CHI to monitoring")
 	w.c.updateWatch(cr)
 }
