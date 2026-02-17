@@ -4454,7 +4454,7 @@ def test_010042_2(self):
         ver = clickhouse.query(chi, "select version()")
         assert version_from in ver
 
-    with When("OnUpdateFailaure is aborted"):
+    with When("OnUpdateFailure is aborted"):
         onUpdateFailure = kubectl.get_field("chi", chi, ".spec.reconcile.statefulSet.recreate.onUpdateFailure")
         if onUpdateFailure != 'abort':
             cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"replace","path":"/spec/reconcile/statefulSet/recreate/onUpdateFailure","value":"abort"}}]\''
@@ -4462,7 +4462,7 @@ def test_010042_2(self):
             kubectl.wait_chi_status(chi, "InProgress")
             kubectl.wait_chi_status(chi, "Completed")
 
-        with Then("Upgrade podTemplate to a different verison should be aborted"):
+        with Then("Upgrade podTemplate to a different version should be aborted"):
             kubectl.create_and_check(
                 manifest = "manifests/chi/test-042-abort-2.yaml",
                 check={
@@ -4476,7 +4476,7 @@ def test_010042_2(self):
             ver = clickhouse.query(chi, "select version()")
             assert version_from in ver
 
-    with When("OnUpdateFailaure is recreate"):
+    with When("OnUpdateFailure is recreate"):
         onUpdateFailure = kubectl.get_field("chi", chi, ".spec.reconcile.statefulSet.recreate.onUpdateFailure")
         if onUpdateFailure != 'recreate':
             cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"replace","path":"/spec/reconcile/statefulSet/recreate/onUpdateFailure","value":"recreate"}}]\''
@@ -4484,7 +4484,7 @@ def test_010042_2(self):
             kubectl.wait_chi_status(chi, "InProgress")
             kubectl.wait_chi_status(chi, "Completed")
 
-        with Then("Upgrade podTemplate to a different verison should be successful"):
+        with Then("Upgrade podTemplate to a different version should be successful"):
             kubectl.create_and_check(
                 manifest = "manifests/chi/test-042-abort-3.yaml",
                 check={
