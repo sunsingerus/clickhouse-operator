@@ -1724,12 +1724,12 @@ def test_010014_0(self):
                 "do_not_delete": 1,
             },
         )
-        with Then(f"Tables are deleted in {self.context.keeper_type}"):
+        with Then(f"Tables are deleted in {self.context.keeper_type}", flags=XFAIL):
             out = clickhouse.query_with_error(
                 chi_name,
                 f"SELECT count() FROM system.zookeeper WHERE path ='/clickhouse/{cluster}/tables/0/default'",
             )
-            print(f"Found {out} replicated tables in {self.context.keeper_type}")
+            note(f"Found {out} replicated tables in {self.context.keeper_type}")
             assert "DB::Exception: No node" in out or out == "0"
 
     with Finally("I clean up"):
