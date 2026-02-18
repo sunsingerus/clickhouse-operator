@@ -5063,32 +5063,63 @@ def test_010054(self):
             },
         )
 
-    with Then("Add suspend attribute to CHI"):
+    with When("Add suspend attribute to CHI"):
         cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"add","path":"/spec/suspend","value":"yes"}}]\''
         kubectl.launch(cmd)
 
-    with Then(f"Update podTemplate to {new_version} and confirm that pod image is NOT updated"):
+        with Then(f"Update podTemplate to {new_version} and confirm that pod image is NOT updated"):
+            kubectl.create_and_check(
+                manifest="manifests/chi/test-006-ch-upgrade-2.yaml",
+                check={
+                    "pod_count": 1,
+                    "pod_image": old_version,
+                    "do_not_delete": 1,
+                },
+            )
+
+    with When("Remove suspend attribute from CHI"):
+        cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"remove","path":"/spec/suspend"}}]\''
+        kubectl.launch(cmd)
+
+        kubectl.wait_chi_status(chi, "InProgress")
+        kubectl.wait_chi_status(chi, "Completed")
+
+        with Then(f"Confirm that pod image is updated to {new_version}"):
+            kubectl.check_pod_image(chi, new_version)
+
+    with When(f"Update podTemplate to {old_version} back but do not wait for completion"):
         kubectl.create_and_check(
-            manifest="manifests/chi/test-006-ch-upgrade-2.yaml",
+            manifest="manifests/chi/test-006-ch-upgrade-1.yaml",
             check={
-                "pod_count": 1,
-                "pod_image": old_version,
+                "chi_status": "InProgress",
                 "do_not_delete": 1,
             },
         )
 
-    with Then("Remove suspend attribute from CHI"):
+    with And("Add suspend attribute to CHI"):
+        cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"add","path":"/spec/suspend","value":"yes"}}]\''
+        kubectl.launch(cmd)
+
+        with Then(f"Reconcile should be interrupted and pod image should remain at {new_version}"):
+            # kubectl.wait_chi_status(chi, "Aborted", retries=5)
+            time.sleep(60)
+
+            kubectl.check_pod_image(chi, new_version)
+
+    with When("Remove suspend attribute from CHI"):
         cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"remove","path":"/spec/suspend"}}]\''
         kubectl.launch(cmd)
 
-    kubectl.wait_chi_status(chi, "InProgress")
-    kubectl.wait_chi_status(chi, "Completed")
+        with Then("Reconcile should be resumed"):
+            kubectl.wait_chi_status(chi, "InProgress")
+            kubectl.wait_chi_status(chi, "Completed")
 
-    with Then(f"Confirm that pod image is updated to {new_version}"):
-        kubectl.check_pod_image(chi, new_version)
+        with And(f"Pod image should be reverted back to {old_version}"):
+            kubectl.check_pod_image(chi, old_version)
 
     with Finally("I clean up"):
         delete_test_namespace()
+
 
 
 @TestScenario
