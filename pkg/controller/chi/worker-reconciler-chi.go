@@ -67,7 +67,25 @@ func (w *worker) reconcileCR(ctx context.Context, old, new *api.ClickHouseInstal
 	case new.Spec.Suspend.Value():
 		// if CR is suspended, should skip reconciliation
 		w.a.M(new).F().Info("Suspended CR")
-		metrics.CRReconcilesCompleted(ctx, new)
+		if new.EnsureStatus().GetStatus() == api.StatusInProgress {
+			// CR was in the middle of reconcile when suspended — mark as Aborted
+			new.EnsureStatus().ReconcileAbort()
+			_ = w.c.updateCRObjectStatus(ctx, new, types.UpdateStatusOptions{
+				CopyStatusOptions: types.CopyStatusOptions{
+					CopyStatusFieldGroup: types.CopyStatusFieldGroup{
+						FieldGroupMain: true,
+					},
+				},
+			})
+			w.a.V(1).
+				WithEvent(new, a.EventActionReconcile, a.EventReasonReconcileFailed).
+				WithAction(new).
+				M(new).F().
+				Warning("reconcile aborted due to suspend")
+			metrics.CRReconcilesAborted(ctx, new)
+		} else {
+			metrics.CRReconcilesCompleted(ctx, new)
+		}
 		return nil
 	case new.EnsureRuntime().ActionPlan.HasActionsToDo():
 		w.a.M(new).F().Info("ActionPlan has actions - continue reconcile")
