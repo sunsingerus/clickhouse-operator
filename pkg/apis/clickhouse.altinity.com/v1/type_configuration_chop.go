@@ -72,7 +72,7 @@ const (
 
 	// Timeouts used to limit connection and queries from the operator to ClickHouse instances. In seconds
 	// defaultTimeoutConnect specifies default timeout to connect to the ClickHouse instance. In seconds
-	defaultTimeoutConnect = 2
+	defaultTimeoutConnect = 5
 	// defaultTimeoutQuery specifies default timeout to query the CLickHouse instance. In seconds
 	defaultTimeoutQuery = 5
 	// defaultTimeoutCollect specifies default timeout to collect metrics from the ClickHouse instance. In seconds

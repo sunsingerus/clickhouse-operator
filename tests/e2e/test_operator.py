@@ -2930,7 +2930,7 @@ def test_010025(self):
             cnt_local = clickhouse.query_with_error(
                 chi,
                 "SELECT count() FROM test_local_025",
-                "chi-test-025-rescaling-default-0-1.test.svc.cluster.local",
+                "chi-test-025-rescaling-default-0-1.test.svc.cluster.local.",
             )
             cnt_lb = clickhouse.query_with_error(chi, "SELECT count() FROM test_local_025")
             cnt_distr_lb = clickhouse.query_with_error(chi, "SELECT count() FROM test_distr_025")
@@ -4928,8 +4928,8 @@ def test_010050(self):
         out = kubectl.launch("get pods -l app=clickhouse-operator", ns=operator_namespace).splitlines()[1]
         operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
 
-        # chi_clickhouse_metric_VersionInteger{chi="test-050",exclude_this_annotation="test-050-annotation",hostname="chi-test-050-default-0-0.test-050-e1884706-9a94-11ef-a786-367ddacfe5fd.svc.cluster.local",include_this_annotation="test-050-annotation",include_this_label="test-050-label",namespace="test-050-e1884706-9a94-11ef-a786-367ddacfe5fd"}
-        expect_labels = f"chi=\"test-050\",hostname=\"chi-test-050-default-0-0.{operator_namespace}.svc.cluster.local\",include_this_annotation=\"test-050-annotation\",include_this_label=\"test-050-label\""
+        # chi_clickhouse_metric_VersionInteger{chi="test-050",exclude_this_annotation="test-050-annotation",hostname="chi-test-050-default-0-0.test-050-e1884706-9a94-11ef-a786-367ddacfe5fd.svc.cluster.local.",include_this_annotation="test-050-annotation",include_this_label="test-050-label",namespace="test-050-e1884706-9a94-11ef-a786-367ddacfe5fd"}
+        expect_labels = f"chi=\"test-050\",hostname=\"chi-test-050-default-0-0.{operator_namespace}.svc.cluster.local.\",include_this_annotation=\"test-050-annotation\",include_this_label=\"test-050-label\""
         check_metrics_monitoring(
             operator_namespace=operator_namespace,
             operator_pod=operator_pod,
