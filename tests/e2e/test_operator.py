@@ -585,7 +585,7 @@ def test_010009_1(self, version_from="0.25.6", version_to=None):
 @TestScenario
 @Name("test_010009_2. Test operator upgrade")
 @Tags("NO_PARALLEL")
-def test_010009_2(self, version_from="0.25.2", version_to=None):
+def test_010009_2(self, version_from="0.25.6", version_to=None):
     if version_to is None:
         version_to = self.context.operator_version
 
@@ -6124,7 +6124,6 @@ def test_020007(self):
 
 @TestScenario
 @Name("test_020008. Test FIPS versions are properly supported by both in CHI and CHK")
-@Tags("NO_PARALLEL")
 def test_020008(self):
     create_shell_namespace_clickhouse_template()
 
