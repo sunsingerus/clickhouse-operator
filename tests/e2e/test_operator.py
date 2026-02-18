@@ -4448,11 +4448,13 @@ def test_010042_2(self):
             },
         )
 
-    version_from = "24.8"
-    version_to = "25.3"
-    with Then("CHI version is " + version_from):
+    version_1 = "24.8"
+    version_2 = "25.3"
+    version_3 = "25.8"
+
+    with Then("CHI version is " + version_1):
         ver = clickhouse.query(chi, "select version()")
-        assert version_from in ver
+        assert version_1 in ver
 
     with When("OnUpdateFailure is aborted"):
         onUpdateFailure = kubectl.get_field("chi", chi, ".spec.reconcile.statefulSet.recreate.onUpdateFailure")
@@ -4462,9 +4464,30 @@ def test_010042_2(self):
             kubectl.wait_chi_status(chi, "InProgress")
             kubectl.wait_chi_status(chi, "Completed")
 
-        with Then("Upgrade podTemplate to a different version should be aborted"):
+        with Then("Upgrade podTemplate.image to a different version should be allowed"):
             kubectl.create_and_check(
                 manifest = "manifests/chi/test-042-abort-2.yaml",
+                check={
+                    "pod_count": 1,
+                    "do_not_delete": 1
+                },
+            )
+
+        with And("CHI version is nchanged to " + version_2):
+            ver = clickhouse.query(chi, "select version()")
+            assert version_2 in ver
+
+    with When("OnUpdateFailure is aborted"):
+        onUpdateFailure = kubectl.get_field("chi", chi, ".spec.reconcile.statefulSet.recreate.onUpdateFailure")
+        if onUpdateFailure != 'abort':
+            cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"replace","path":"/spec/reconcile/statefulSet/recreate/onUpdateFailure","value":"abort"}}]\''
+            kubectl.launch(cmd)
+            kubectl.wait_chi_status(chi, "InProgress")
+            kubectl.wait_chi_status(chi, "Completed")
+
+        with Then("Upgrade podTemplate.volumeClaimTemplate should fail"):
+            kubectl.create_and_check(
+                manifest = "manifests/chi/test-042-abort-3.yaml",
                 check={
                     "pod_count": 1,
                     "do_not_delete": 1,
@@ -4472,11 +4495,11 @@ def test_010042_2(self):
                 },
             )
 
-        with And("CHI version is unchanged " + version_from):
+        with And("CHI version is unchanged " + version_2):
             ver = clickhouse.query(chi, "select version()")
-            assert version_from in ver
+            assert version_2 in ver
 
-    with When("OnUpdateFailure is recreate"):
+    with When("OnUpdateFailure is changed to recreate"):
         onUpdateFailure = kubectl.get_field("chi", chi, ".spec.reconcile.statefulSet.recreate.onUpdateFailure")
         if onUpdateFailure != 'recreate':
             cmd = f'patch chi {chi} --type=\'json\' --patch=\'[{{"op":"replace","path":"/spec/reconcile/statefulSet/recreate/onUpdateFailure","value":"recreate"}}]\''
@@ -4484,18 +4507,10 @@ def test_010042_2(self):
             kubectl.wait_chi_status(chi, "InProgress")
             kubectl.wait_chi_status(chi, "Completed")
 
-        with Then("Upgrade podTemplate to a different version should be successful"):
-            kubectl.create_and_check(
-                manifest = "manifests/chi/test-042-abort-3.yaml",
-                check={
-                    "pod_count": 1,
-                    "do_not_delete": 1
-                },
-            )
-
-        with And("CHI version is changed " + version_to):
+        with Then("CHI reconcile should proceed, and CHI version is unchanged " + version_3):
             ver = clickhouse.query(chi, "select version()")
-            assert version_to in ver
+            assert version_3 in ver
+
 
     with Finally("I clean up"):
         delete_test_namespace()
