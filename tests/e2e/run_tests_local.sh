@@ -67,10 +67,13 @@ case "${WHAT}" in
         ;;
 esac
 
-TIMEOUT=30
-echo "Press <ENTER> to start test immediately (if you agree with specified options)"
-echo "In case no input provided tests would start in ${TIMEOUT} seconds automatically"
-read -t ${TIMEOUT}
+# Only wait for confirmation when running interactively (stdin is a terminal)
+if [ -t 0 ]; then
+    TIMEOUT=30
+    echo "Press <ENTER> to start test immediately (if you agree with specified options)"
+    echo "In case no input provided tests would start in ${TIMEOUT} seconds automatically"
+    read -t ${TIMEOUT}
+fi
 
 # Dispatch to the dedicated local script, with optional repeat mode
 case "${REPEAT_UNTIL}" in
