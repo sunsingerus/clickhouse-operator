@@ -589,6 +589,12 @@ def get_pod_ports(chi_name, pod_name="", ns=None, shell=None):
         ports.append(p["containerPort"])
     return ports
 
+def get_operator_pod(ns=None, shell=None):
+    out = launch(f"get pod -l app=clickhouse-operator -o=custom-columns=field:.metadata.name", ns=ns, ok_to_fail=True, shell=shell).splitlines()
+    if len(out) > 1:
+        return out[1]
+    else:
+        return ""
 
 def check_pod_ports(chi_name, ports, ns=None, shell=None):
     pod_ports = get_pod_ports(chi_name, ns=ns, shell=shell)

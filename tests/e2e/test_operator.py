@@ -3620,11 +3620,9 @@ def test_010034(self):
         )
 
     with Then("check for `chi_clickhouse_metric_fetch_errors` is zero [1]"):
-        out = kubectl.launch("get pods -l app=clickhouse-operator", ns=operator_namespace).splitlines()[1]
-        operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
         check_metrics_monitoring(
             operator_namespace=operator_namespace,
-            operator_pod=operator_pod,
+            operator_pod=kubectl.get_operator_pod(),
             expect_pattern="^chi_clickhouse_metric_fetch_errors{(.*?)} 0$",
         )
 
@@ -3635,13 +3633,10 @@ def test_010034(self):
         util.restart_operator()
         kubectl.wait_chi_status(chi, "Completed")
 
-        out = kubectl.launch("get pods -l app=clickhouse-operator", ns=current().context.operator_namespace).splitlines()[1]
-        operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
-
     with Then("check for `chi_clickhouse_metric_fetch_errors` is not zero"):
         check_metrics_monitoring(
             operator_namespace=operator_namespace,
-            operator_pod=operator_pod,
+            operator_pod=kubectl.get_operator_pod(),
             expect_pattern="^chi_clickhouse_metric_fetch_errors{(.*?)} 1$",
         )
 
@@ -3650,13 +3645,11 @@ def test_010034(self):
 
     with And("Re-create operator pod in order to restart metrics exporter to update the configuration [2]"):
         util.restart_operator()
-        out = kubectl.launch("get pods -l app=clickhouse-operator", ns=current().context.operator_namespace).splitlines()[1]
-        operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
 
     with Then("check for `chi_clickhouse_metric_fetch_errors` is zero [2]"):
         check_metrics_monitoring(
             operator_namespace=operator_namespace,
-            operator_pod=operator_pod,
+            operator_pod=kubectl.get_operator_pod(),
             expect_pattern="^chi_clickhouse_metric_fetch_errors{(.*?)} 0$",
         )
 
@@ -3712,13 +3705,11 @@ def test_010034(self):
 
     with And("Re-create operator pod in order to restart metrics exporter to update the configuration [3]"):
         util.restart_operator()
-        out = kubectl.launch("get pods -l app=clickhouse-operator", ns=current().context.operator_namespace).splitlines()[1]
-        operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
 
     with Then("check for `chi_clickhouse_metric_fetch_errors` is zero [3]"):
         check_metrics_monitoring(
             operator_namespace=operator_namespace,
-            operator_pod=operator_pod,
+            operator_pod=kubectl.get_operator_pod(),
             expect_pattern="^chi_clickhouse_metric_fetch_errors{(.*?)} 0$",
         )
 
@@ -3727,14 +3718,12 @@ def test_010034(self):
 
     with And("Re-create operator pod in order to restart metrics exporter to update the configuration [4]"):
         util.restart_operator()
-        out = kubectl.launch("get pods -l app=clickhouse-operator", ns=current().context.operator_namespace).splitlines()[1]
-        operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
 
     # 0.21.2+
     with Then("check for `chi_clickhouse_metric_fetch_errors` is zero [4]"):
         check_metrics_monitoring(
             operator_namespace=operator_namespace,
-            operator_pod=operator_pod,
+            operator_pod=kubectl.get_operator_pod(),
             expect_pattern="^chi_clickhouse_metric_fetch_errors{(.*?)} 0$",
         )
 
@@ -4719,8 +4708,7 @@ def test_010046(self):
     manifest = f"manifests/chi/test-046-0-clickhouse-operator-metrics.yaml"
     chi = yaml_manifest.get_name(util.get_full_path(manifest))
     operator_namespace = current().context.operator_namespace
-    out = kubectl.launch("get pods -l app=clickhouse-operator", ns=current().context.operator_namespace).splitlines()[1]
-    operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
+    operator_pod = kubectl.get_operator_pod()
 
     with Given("CHI with 1 replica is installed"):
         kubectl.create_and_check(
@@ -4940,8 +4928,7 @@ def test_010050(self):
 
     with Then("Check that exposed metrics do not have labels and annotations that are excluded"):
         operator_namespace = current().context.operator_namespace
-        out = kubectl.launch("get pods -l app=clickhouse-operator", ns=operator_namespace).splitlines()[1]
-        operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
+        operator_pod = kubectl.get_operator_pod()
 
         # chi_clickhouse_metric_VersionInteger{chi="test-050",exclude_this_annotation="test-050-annotation",hostname="chi-test-050-default-0-0.test-050-e1884706-9a94-11ef-a786-367ddacfe5fd.svc.cluster.local.",include_this_annotation="test-050-annotation",include_this_label="test-050-label",namespace="test-050-e1884706-9a94-11ef-a786-367ddacfe5fd"}
         expect_labels = f"chi=\"test-050\",hostname=\"chi-test-050-default-0-0.{operator_namespace}.svc.cluster.local.\",include_this_annotation=\"test-050-annotation\",include_this_label=\"test-050-label\""
@@ -5257,16 +5244,35 @@ def test_010056(self):
             assert out != "0"
 
         with And("Replica still should be unready after reconcile timeout"):
-            pod = kubectl.get("pod", f"chi-{chi}-{cluster}-0-1-0")
-            ready = pod["metadata"]["labels"]["clickhouse.altinity.com/ready"]
+            ready = kubectl.get_field("pod", f"chi-{chi}-{cluster}-0-1-0", ".metadata.labels.clickhouse\.altinity\.com\/ready")
             print(f"ready label={ready}")
             assert ready != "yes", error("Replica should be unready")
 
+        with And("Replica should be included in the monitoring"): # as of 0.26.0
+            operator_namespace=current().context.operator_namespace
+            check_metrics_monitoring(
+                operator_namespace = current().context.operator_namespace,
+                operator_pod = kubectl.get_operator_pod(),
+                expect_metric = "chi_clickhouse_metric_VersionInteger",
+                expect_labels = f"chi-{chi}-{cluster}-0-1"
+            )
+        with And("Replica should report a replication queue"): # as of 0.26.0
+            operator_namespace=current().context.operator_namespace
+            check_metrics_monitoring(
+                operator_namespace = current().context.operator_namespace,
+                operator_pod = kubectl.get_operator_pod(),
+                expect_metric = "chi_clickhouse_metric_ReplicasSumQueueSize",
+                expect_labels = f"chi-{chi}-{cluster}-0-1"
+            )
+
     with When("START REPLICATED SENDS"):
         clickhouse.query(chi, "SYSTEM START REPLICATED SENDS", host=f"chi-{chi}-{cluster}-0-0-0")
-        time.sleep(10)
 
-        with Then("Replication delay should be zero"):
+        with Then("Replica should become ready"):
+            kubectl.wait_field("pod", f"chi-{chi}-{cluster}-0-1-0",
+                                       ".metadata.labels.clickhouse\.altinity\.com\/ready", value="yes")
+
+        with And("Replication delay should be zero"):
             out = clickhouse.query(chi, "select max(absolute_delay) from system.replicas", host=f"chi-{chi}-{cluster}-0-1-0")
             print(f"max(absolute_delay)={out}")
             assert out == "0"
@@ -5322,8 +5328,7 @@ def test_010058(self):  # Can be merged with test_034 potentially
 
     with Given("Add rootCA to operator configuration"):
         util.apply_operator_config("manifests/chopconf/test-058-chopconf.yaml")
-    out = kubectl.launch("get pods -l app=clickhouse-operator", ns=current().context.operator_namespace).splitlines()[1]
-    operator_pod = re.split(r"[\t\r\n\s]+", out)[0]
+    operator_pod = kubectl.get_operator_pod()
 
     with Given("test-058-root-ca secret is installed"):
         kubectl.apply(

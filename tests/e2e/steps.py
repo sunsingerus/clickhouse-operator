@@ -171,7 +171,7 @@ def check_metrics_monitoring(
                 ns=operator_namespace,
             )
             if expect_metric != "":
-                lines = [m for m in out.splitlines() if m.startswith(expect_metric)]
+                lines = [m for m in out.splitlines() if m.startswith(expect_metric) and expect_labels in m]
                 if len(lines) > 0:
                     metric = lines[0]
                     print(f"have: {metric}")
