@@ -3737,6 +3737,7 @@ def test_010034(self):
 @TestScenario
 @Requirements(RQ_SRS_026_ClickHouseOperator_Managing_ReprovisioningVolume("1.0"))
 @Name("test_010036. Check operator volume re-provisioning")
+@Tags("NO_PARALLEL")
 def test_010036(self):
     """Check clickhouse operator recreates volumes and schema if volume is broken."""
     create_shell_namespace_clickhouse_template()
