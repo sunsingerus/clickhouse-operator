@@ -5061,6 +5061,7 @@ def test_010054(self):
                 check={
                     "pod_count": 1,
                     "pod_image": old_version,
+                    "chi_status": "Aborted",
                     "do_not_delete": 1,
                 },
             )
