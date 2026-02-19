@@ -30,7 +30,7 @@ func Dump(obj interface{}) (out string) {
 
 	d := dumper.Options{
 		Separator: " ",
-		StrictGo:  true,
+		StrictGo:  false,
 		//Compact           :true,
 		//StripPackageNames :true,
 		//HidePrivateFields: true,
