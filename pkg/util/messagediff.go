@@ -64,7 +64,7 @@ func PrintPath(path *messagediff.Path, defaultPath string) (res string) {
 }
 
 func PrintTrimmedValue(value any) string {
-	const maxLen = 1024
+	const maxLen = 256
 	str := Dump(value)
 	if len(str) <= maxLen {
 		return str
