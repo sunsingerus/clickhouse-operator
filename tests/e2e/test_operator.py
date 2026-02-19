@@ -5089,8 +5089,8 @@ def test_010054(self):
         kubectl.launch(cmd)
 
         with Then(f"Reconcile should be interrupted and pod image should remain at {new_version}"):
-            # kubectl.wait_chi_status(chi, "Aborted", retries=5)
-            time.sleep(60)
+            kubectl.wait_chi_status(chi, "Aborted", retries=5, throw_error=False)
+            print(kubectl.get_chi_status(chi))
 
             kubectl.check_pod_image(chi, new_version)
 
