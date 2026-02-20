@@ -95,6 +95,7 @@ crdHook:
 | metrics.enabled | bool | `true` |  |
 | metrics.env | list | `[]` | additional environment variables for the deployment of metrics-exporter containers possible format value `[{"name": "SAMPLE", "value": "text"}]` |
 | metrics.image.pullPolicy | string | `"IfNotPresent"` | image pull policy |
+| metrics.image.registry | string | `""` | optional image registry prefix (e.g. 1234567890.dkr.ecr.us-east-1.amazonaws.com) |
 | metrics.image.repository | string | `"altinity/metrics-exporter"` | image repository |
 | metrics.image.tag | string | `""` | image tag (chart's appVersion value will be used if not set) |
 | metrics.resources | object | `{}` | custom resource configuration |
@@ -104,6 +105,7 @@ crdHook:
 | operator.containerSecurityContext | object | `{}` |  |
 | operator.env | list | `[]` | additional environment variables for the clickhouse-operator container in deployment possible format value `[{"name": "SAMPLE", "value": "text"}]` |
 | operator.image.pullPolicy | string | `"IfNotPresent"` | image pull policy |
+| operator.image.registry | string | `""` | optional image registry prefix (e.g. 1234567890.dkr.ecr.us-east-1.amazonaws.com) |
 | operator.image.repository | string | `"altinity/clickhouse-operator"` | image repository |
 | operator.image.tag | string | `""` | image tag (chart's appVersion value will be used if not set) |
 | operator.priorityClassName | string | "" | priority class name for the clickhouse-operator deployment, check `kubectl explain pod.spec.priorityClassName` for details |

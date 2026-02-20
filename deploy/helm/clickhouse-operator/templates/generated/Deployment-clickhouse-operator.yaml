@@ -66,7 +66,7 @@ spec:
             name: {{ include "altinity-clickhouse-operator.fullname" . }}-keeper-usersd-files
       containers:
         - name: {{ .Chart.Name }}
-          image: {{ .Values.operator.image.repository }}:{{ include "altinity-clickhouse-operator.operator.tag" . }}
+          image: {{ if .Values.operator.image.registry }}{{ .Values.operator.image.registry | trimSuffix "/" }}/{{ end }}{{ .Values.operator.image.repository }}:{{ include "altinity-clickhouse-operator.operator.tag" . }}
           imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
           volumeMounts:
             - name: etc-clickhouse-operator-folder
@@ -144,7 +144,7 @@ spec:
           securityContext: {{ toYaml .Values.operator.containerSecurityContext | nindent 12 }}
 {{ if .Values.metrics.enabled }}
         - name: metrics-exporter
-          image: {{ .Values.metrics.image.repository }}:{{ include "altinity-clickhouse-operator.metrics.tag" . }}
+          image: {{ if .Values.metrics.image.registry }}{{ .Values.metrics.image.registry | trimSuffix "/" }}/{{ end }}{{ .Values.metrics.image.repository }}:{{ include "altinity-clickhouse-operator.metrics.tag" . }}
           imagePullPolicy: {{ .Values.metrics.image.pullPolicy }}
           volumeMounts:
             - name: etc-clickhouse-operator-folder

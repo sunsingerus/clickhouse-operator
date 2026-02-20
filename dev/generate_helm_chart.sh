@@ -225,14 +225,14 @@ function update_deployment_resource() {
   done
   
   yq e -i '.spec.template.spec.containers[0].name |= "{{ .Chart.Name }}"' "${file}"
-  yq e -i '.spec.template.spec.containers[0].image |= "{{ .Values.operator.image.repository }}:{{ include \"altinity-clickhouse-operator.operator.tag\" . }}"' "${file}"
+  yq e -i '.spec.template.spec.containers[0].image |= "{{ if .Values.operator.image.registry }}{{ .Values.operator.image.registry | trimSuffix \"/\" }}/{{ end }}{{ .Values.operator.image.repository }}:{{ include \"altinity-clickhouse-operator.operator.tag\" . }}"' "${file}"
   yq e -i '.spec.template.spec.containers[0].imagePullPolicy |= "{{ .Values.operator.image.pullPolicy }}"' "${file}"
   yq e -i '.spec.template.spec.containers[0].resources |= "{{ toYaml .Values.operator.resources | nindent 12 }}"' "${file}"
   yq e -i '.spec.template.spec.containers[0].securityContext |= "{{ toYaml .Values.operator.containerSecurityContext | nindent 12 }}"' "${file}"
   yq e -i '(.spec.template.spec.containers[0].env[] | select(.valueFrom.resourceFieldRef.containerName == "clickhouse-operator") | .valueFrom.resourceFieldRef.containerName) = "{{ .Chart.Name }}"' "${file}"
   yq e -i '.spec.template.spec.containers[0].env += ["{{ with .Values.operator.env }}{{ toYaml . | nindent 12 }}{{ end }}"]' "${file}"
 
-  yq e -i '.spec.template.spec.containers[1].image |= "{{ .Values.metrics.image.repository }}:{{ include \"altinity-clickhouse-operator.metrics.tag\" . }}"' "${file}"
+  yq e -i '.spec.template.spec.containers[1].image |= "{{ if .Values.metrics.image.registry }}{{ .Values.metrics.image.registry | trimSuffix \"/\" }}/{{ end }}{{ .Values.metrics.image.repository }}:{{ include \"altinity-clickhouse-operator.metrics.tag\" . }}"' "${file}"
   yq e -i '.spec.template.spec.containers[1].imagePullPolicy |= "{{ .Values.metrics.image.pullPolicy }}"' "${file}"
   yq e -i '.spec.template.spec.containers[1].resources |= "{{ toYaml .Values.metrics.resources | nindent 12 }}"' "${file}"
   yq e -i '.spec.template.spec.containers[1].securityContext |= "{{ toYaml .Values.metrics.containerSecurityContext | nindent 12 }}"' "${file}"
