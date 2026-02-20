@@ -18,25 +18,23 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/altinity/clickhouse-operator/pkg/apis/metrics"
 	"io"
 	"net/http"
 )
 
-func makeRESTCall(chi *metrics.WatchedCR, method string) error {
+func makeRESTCall(restReq *RESTRequest, method string) error {
 	url := "http://127.0.0.1:8888/chi"
 
-	json, err := json.Marshal(chi)
+	payload, err := json.Marshal(restReq)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(json))
+	httpReq, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	if err != nil {
 		return err
 	}
-	//req.SetBasicAuth(s.Username, s.Password)
-	_, err = doRequest(req)
+	_, err = doRequest(httpReq)
 
 	return err
 }

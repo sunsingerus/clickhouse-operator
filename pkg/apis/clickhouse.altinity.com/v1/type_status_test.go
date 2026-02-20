@@ -2,9 +2,12 @@
 package v1
 
 import (
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/altinity/clickhouse-operator/pkg/apis/common/types"
 )
 
 var normalizedChiA = &ClickHouseInstallation{}
@@ -158,12 +161,14 @@ func Test_ChiStatus_BasicOperations_SingleStatus_ConcurrencyTest(t *testing.T) {
 			name: "CopyFrom",
 			goRoutineA: func(s *Status) {
 				s.PushAction("always-present-action") // CopyFrom preserves existing actions (does not clobber)
-				s.CopyFrom(copyTestStatusFrom, CopyStatusOptions{
-					Actions:           true,
-					Errors:            true,
-					MainFields:        true,
-					WholeStatus:       true,
-					InheritableFields: true,
+				s.CopyFrom(copyTestStatusFrom, types.CopyStatusOptions{
+					CopyStatusFieldGroup: types.CopyStatusFieldGroup{
+						FieldGroupActions:     true,
+						FieldGroupErrors:      true,
+						FieldGroupMain:        true,
+						FieldGroupWholeStatus: true,
+						FieldGroupInheritable: true,
+					},
 				})
 			},
 			goRoutineB: func(s *Status) {

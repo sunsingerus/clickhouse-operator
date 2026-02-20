@@ -25,6 +25,7 @@ spec:
             - name: clickhouse-keeper
               imagePullPolicy: IfNotPresent
               image: "clickhouse/clickhouse-keeper:25.3"
+          serviceAccountName: test-020000-chk-sa
     volumeClaimTemplates:
       - name: default
         spec:

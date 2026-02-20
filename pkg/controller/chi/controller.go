@@ -154,7 +154,7 @@ func (c *Controller) addEventHandlersCHI(
 	chopInformerFactory.Clickhouse().V1().ClickHouseInstallations().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			chi := obj.(*api.ClickHouseInstallation)
-			if !shouldEnqueue(chi) {
+			if !ShouldEnqueue(chi) {
 				return
 			}
 			log.V(3).M(chi).Info("chiInformer.AddFunc")
@@ -163,7 +163,7 @@ func (c *Controller) addEventHandlersCHI(
 		UpdateFunc: func(old, new interface{}) {
 			oldChi := old.(*api.ClickHouseInstallation)
 			newChi := new.(*api.ClickHouseInstallation)
-			if !shouldEnqueue(newChi) {
+			if !ShouldEnqueue(newChi) {
 				return
 			}
 			log.V(3).M(newChi).Info("chiInformer.UpdateFunc")
@@ -692,12 +692,46 @@ func (c *Controller) updateWatch(chi *api.ClickHouseInstallation) {
 	go c.updateWatchAsync(watched)
 }
 
+// allocateWatch
+func (c *Controller) allocateWatch(chi *api.ClickHouseInstallation) {
+	watched := metrics.NewWatchedCR(chi)
+	watched.Clusters = nil
+	go c.updateWatchAsync(watched)
+}
+
 // updateWatchAsync
 func (c *Controller) updateWatchAsync(chi *metrics.WatchedCR) {
 	if err := clickhouse.InformMetricsExporterAboutWatchedCHI(chi); err != nil {
 		log.V(1).F().Info("FAIL update watch (%s/%s): %q", chi.Namespace, chi.Name, err)
 	} else {
 		log.V(1).Info("OK update watch (%s/%s): %s", chi.Namespace, chi.Name, chi)
+	}
+}
+
+// addHostWatch adds a single host to monitoring
+func (c *Controller) addHostWatch(host *api.Host) {
+	req := &clickhouse.HostRequest{
+		CRNamespace: host.Runtime.Address.Namespace,
+		CRName:      host.Runtime.Address.CHIName,
+		ClusterName: host.Runtime.Address.ClusterName,
+		Host: &metrics.WatchedHost{
+			Name:      host.Name,
+			Hostname:  host.Runtime.Address.FQDN,
+			TCPPort:   host.TCPPort.Value(),
+			TLSPort:   host.TLSPort.Value(),
+			HTTPPort:  host.HTTPPort.Value(),
+			HTTPSPort: host.HTTPSPort.Value(),
+		},
+	}
+	go c.addHostWatchAsync(req)
+}
+
+// addHostWatchAsync
+func (c *Controller) addHostWatchAsync(req *clickhouse.HostRequest) {
+	if err := clickhouse.InformMetricsExporterAboutWatchedHost(req); err != nil {
+		log.V(1).F().Info("FAIL add host watch (%s/%s/%s/%s): %q", req.CRNamespace, req.CRName, req.ClusterName, req.Host.Hostname, err)
+	} else {
+		log.V(1).Info("OK add host watch (%s/%s/%s/%s)", req.CRNamespace, req.CRName, req.ClusterName, req.Host.Hostname)
 	}
 }
 
@@ -924,15 +958,10 @@ func (c *Controller) handleObject(obj interface{}) {
 	// TODO c.enqueueObject(chi.Namespace, chi.Name, chi)
 }
 
-func shouldEnqueue(chi *api.ClickHouseInstallation) bool {
-	if !chop.Config().IsNamespaceWatched(chi.Namespace) {
-		log.V(2).M(chi).Info("chiInformer: skip enqueue, namespace '%s' is not watched or is in deny list", chi.Namespace)
-		return false
-	}
-
-	// if CR is suspended, should skip reconciliation
-	if chi.Spec.Suspend.Value() {
-		log.V(5).M(chi).Info("chiInformer: skip enqueue, CHI suspended")
+func ShouldEnqueue(cr *api.ClickHouseInstallation) bool {
+	ns := cr.GetNamespace()
+	if !chop.Config().IsNamespaceWatched(ns) {
+		log.V(2).M(cr).Info("skip enqueue, namespace '%s' is not watched or is in deny list", ns)
 		return false
 	}
 

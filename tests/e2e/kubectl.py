@@ -7,7 +7,7 @@ from testflows.core import *
 from testflows.asserts import error
 # from testflows.connect import Shell
 
-# import e2e.settings as settings
+import e2e.settings as settings
 import e2e.yaml_manifest as yaml_manifest
 import e2e.util as util
 
@@ -73,6 +73,9 @@ def delete_kind(kind, name, ns=None, ok_to_fail=False, shell=None):
 
 
 def delete_chi(chi, ns=None, wait=True, ok_undeleted = False, ok_to_fail=False, shell=None):
+    if settings.no_cleanup:
+        print(f"NO_CLEANUP is set, skipping delete_chi: {chi}")
+        return
     delete_kind("chi", chi, ns=ns, ok_to_fail=ok_to_fail, shell=shell)
     if wait:
         wait_objects(
@@ -98,6 +101,9 @@ def delete_chi(chi, ns=None, wait=True, ok_undeleted = False, ok_to_fail=False, 
 
 
 def delete_chk(chk, ns=None, wait=True, ok_to_fail=False, shell=None):
+    if settings.no_cleanup:
+        print(f"NO_CLEANUP is set, skipping delete_chk: {chk}")
+        return
     delete_kind("chk", chk, ns=ns, ok_to_fail=ok_to_fail, shell=shell)
 
 
@@ -583,6 +589,12 @@ def get_pod_ports(chi_name, pod_name="", ns=None, shell=None):
         ports.append(p["containerPort"])
     return ports
 
+def get_operator_pod(ns=None, shell=None):
+    out = launch(f"get pod -l app=clickhouse-operator -o=custom-columns=field:.metadata.name", ns=ns, ok_to_fail=True, shell=shell).splitlines()
+    if len(out) > 1:
+        return out[1]
+    else:
+        return ""
 
 def check_pod_ports(chi_name, ports, ns=None, shell=None):
     pod_ports = get_pod_ports(chi_name, ns=ns, shell=shell)

@@ -4,14 +4,14 @@
 # SINGULAR=clickhouseinstallation
 # PLURAL=clickhouseinstallations
 # SHORT=chi
-# OPERATOR_VERSION=0.25.6
+# OPERATOR_VERSION=0.26.0
 #
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: clickhouseinstallations.clickhouse.altinity.com
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
 spec:
   group: clickhouse.altinity.com
   scope: Namespaced
@@ -26,6 +26,10 @@ spec:
       served: true
       storage: true
       additionalPrinterColumns:
+        - name: status
+          type: string
+          description: Resource status
+          jsonPath: .status.status
         - name: version
           type: string
           description: Operator version
@@ -49,10 +53,6 @@ spec:
           description: TaskID
           priority: 1 # show in wide view
           jsonPath: .status.taskID
-        - name: status
-          type: string
-          description: Resource status
-          jsonPath: .status.status
         - name: hosts-completed
           type: integer
           description: Completed hosts count
@@ -497,6 +497,80 @@ spec:
                           minimum: 0
                           maximum: 100
                           description: "The maximum percentage of cluster shards that may be reconciled in parallel, 50 percent by default."
+                    statefulSet: &TypeReconcileStatefulSet
+                      type: object
+                      description: "Optional, StatefulSet reconcile behavior tuning"
+                      properties:
+                        create:
+                          type: object
+                          description: "Behavior during create StatefulSet"
+                          properties:
+                            onFailure:
+                              type: string
+                              description: |
+                                What to do in case created StatefulSet is not in 'Ready' after `reconcile.statefulSet.update.timeout` seconds.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet, leave it as it is.
+                                2. delete - delete newly created problematic StatefulSet and follow 'abort' path afterwards.
+                                3. ignore - ignore an error, pretend nothing happened, continue reconcile and move on to the next StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "delete"
+                                - "ignore"
+                        update:
+                          type: object
+                          description: "Behavior during update StatefulSet"
+                          properties:
+                            timeout:
+                              type: integer
+                              description: "How many seconds to wait for StatefulSet to be 'Ready' during update"
+                              minimum: 0
+                              maximum: 3600
+                            pollInterval:
+                              type: integer
+                              description: "How many seconds to wait between checks for StatefulSet status during update"
+                              minimum: 1
+                              maximum: 600
+                            onFailure:
+                              type: string
+                              description: |
+                                What to do in case updated StatefulSet is not in 'Ready' after `reconcile.statefulSet.update.timeout` seconds.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet, leave it as it is.
+                                2. rollback - delete Pod and rollback StatefulSet to previous Generation. Follow 'abort' path afterwards.
+                                3. ignore - ignore an error, pretend nothing happened, continue reconcile and move on to the next StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "rollback"
+                                - "ignore"
+                        recreate:
+                          type: object
+                          description: "Behavior during recreate StatefulSet"
+                          properties:
+                            onDataLoss:
+                              type: string
+                              description: |
+                                What to do in case operator needs to recreate StatefulSet due to PVC data loss or missing volumes.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet.
+                                2. recreate - proceed and recreate StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "recreate"
+                            onUpdateFailure:
+                              type: string
+                              description: |
+                                What to do in case operator needs to recreate StatefulSet due to update failure or StatefulSet not ready.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet.
+                                2. recreate - proceed and recreate StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "recreate"
                     host: &TypeReconcileHost
                       type: object
                       description: |
@@ -1463,14 +1537,14 @@ spec:
 # SINGULAR=clickhouseinstallationtemplate
 # PLURAL=clickhouseinstallationtemplates
 # SHORT=chit
-# OPERATOR_VERSION=0.25.6
+# OPERATOR_VERSION=0.26.0
 #
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: clickhouseinstallationtemplates.clickhouse.altinity.com
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
 spec:
   group: clickhouse.altinity.com
   scope: Namespaced
@@ -1485,6 +1559,10 @@ spec:
       served: true
       storage: true
       additionalPrinterColumns:
+        - name: status
+          type: string
+          description: Resource status
+          jsonPath: .status.status
         - name: version
           type: string
           description: Operator version
@@ -1508,10 +1586,6 @@ spec:
           description: TaskID
           priority: 1 # show in wide view
           jsonPath: .status.taskID
-        - name: status
-          type: string
-          description: Resource status
-          jsonPath: .status.status
         - name: hosts-completed
           type: integer
           description: Completed hosts count
@@ -1956,6 +2030,80 @@ spec:
                           minimum: 0
                           maximum: 100
                           description: "The maximum percentage of cluster shards that may be reconciled in parallel, 50 percent by default."
+                    statefulSet: &TypeReconcileStatefulSet
+                      type: object
+                      description: "Optional, StatefulSet reconcile behavior tuning"
+                      properties:
+                        create:
+                          type: object
+                          description: "Behavior during create StatefulSet"
+                          properties:
+                            onFailure:
+                              type: string
+                              description: |
+                                What to do in case created StatefulSet is not in 'Ready' after `reconcile.statefulSet.update.timeout` seconds.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet, leave it as it is.
+                                2. delete - delete newly created problematic StatefulSet and follow 'abort' path afterwards.
+                                3. ignore - ignore an error, pretend nothing happened, continue reconcile and move on to the next StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "delete"
+                                - "ignore"
+                        update:
+                          type: object
+                          description: "Behavior during update StatefulSet"
+                          properties:
+                            timeout:
+                              type: integer
+                              description: "How many seconds to wait for StatefulSet to be 'Ready' during update"
+                              minimum: 0
+                              maximum: 3600
+                            pollInterval:
+                              type: integer
+                              description: "How many seconds to wait between checks for StatefulSet status during update"
+                              minimum: 1
+                              maximum: 600
+                            onFailure:
+                              type: string
+                              description: |
+                                What to do in case updated StatefulSet is not in 'Ready' after `reconcile.statefulSet.update.timeout` seconds.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet, leave it as it is.
+                                2. rollback - delete Pod and rollback StatefulSet to previous Generation. Follow 'abort' path afterwards.
+                                3. ignore - ignore an error, pretend nothing happened, continue reconcile and move on to the next StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "rollback"
+                                - "ignore"
+                        recreate:
+                          type: object
+                          description: "Behavior during recreate StatefulSet"
+                          properties:
+                            onDataLoss:
+                              type: string
+                              description: |
+                                What to do in case operator needs to recreate StatefulSet due to PVC data loss or missing volumes.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet.
+                                2. recreate - proceed and recreate StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "recreate"
+                            onUpdateFailure:
+                              type: string
+                              description: |
+                                What to do in case operator needs to recreate StatefulSet due to update failure or StatefulSet not ready.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet.
+                                2. recreate - proceed and recreate StatefulSet.
+                              enum:
+                                - ""
+                                - "abort"
+                                - "recreate"
                     host: &TypeReconcileHost
                       type: object
                       description: |
@@ -2925,7 +3073,7 @@ kind: CustomResourceDefinition
 metadata:
   name: clickhouseoperatorconfigurations.clickhouse.altinity.com
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
 spec:
   group: clickhouse.altinity.com
   scope: Namespaced
@@ -3158,6 +3306,12 @@ spec:
                                 Timeout used to limit metrics collection request. In seconds.
                                 Upon reaching this timeout metrics collection is aborted and no more metrics are collected in this cycle.
                                 All collected metrics are returned.
+                        tablesRegexp:
+                          type: string
+                          description: |
+                            Regexp to match tables in system database to fetch metrics from.
+                            Multiple tables can be matched using regexp. Matched tables are merged using merge() table function.
+                            Default is "^(metrics|custom_metrics)$".
                 template:
                   type: object
                   description: "Parameters which are used if you want to generate ClickHouseInstallationTemplate custom resources from files which are stored inside clickhouse-operator deployment"
@@ -3236,6 +3390,24 @@ spec:
                                 1. abort - do nothing, just break the process and wait for admin.
                                 2. rollback (default) - delete Pod and rollback StatefulSet to previous Generation. Pod would be recreated by StatefulSet based on rollback-ed configuration.
                                 3. ignore - ignore error, pretend nothing happened and move on to the next StatefulSet.
+                        recreate:
+                          type: object
+                          description: "Behavior during recreate StatefulSet"
+                          properties:
+                            onDataLoss:
+                              type: string
+                              description: |
+                                What to do in case operator needs to recreate StatefulSet due to PVC data loss or missing volumes.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet.
+                                2. recreate (default) - proceed and recreate StatefulSet.
+                            onUpdateFailure:
+                              type: string
+                              description: |
+                                What to do in case operator needs to recreate StatefulSet due to update failure or StatefulSet not ready.
+                                Possible options:
+                                1. abort - abort the process, do nothing with the problematic StatefulSet.
+                                2. recreate (default) - proceed and recreate StatefulSet.
                     host:
                       type: object
                       description: |
@@ -3463,14 +3635,14 @@ spec:
 ---
 # Template Parameters:
 #
-# OPERATOR_VERSION=0.25.6
+# OPERATOR_VERSION=0.26.0
 #
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: clickhousekeeperinstallations.clickhouse-keeper.altinity.com
   labels:
-    clickhouse-keeper.altinity.com/chop: 0.25.6
+    clickhouse-keeper.altinity.com/chop: 0.26.0
 spec:
   group: clickhouse-keeper.altinity.com
   scope: Namespaced
@@ -3485,6 +3657,10 @@ spec:
       served: true
       storage: true
       additionalPrinterColumns:
+        - name: status
+          type: string
+          description: Resource status
+          jsonPath: .status.status
         - name: version
           type: string
           description: Operator version
@@ -3508,15 +3684,10 @@ spec:
           description: TaskID
           priority: 1 # show in wide view
           jsonPath: .status.taskID
-        - name: status
-          type: string
-          description: Resource status
-          jsonPath: .status.status
-        - name: hosts-unchanged
+        - name: hosts-completed
           type: integer
-          description: Unchanged hosts count
-          priority: 1 # show in wide view
-          jsonPath: .status.hostsUnchanged
+          description: Completed hosts count
+          jsonPath: .status.hostsCompleted
         - name: hosts-updated
           type: integer
           description: Updated hosts count
@@ -3527,20 +3698,11 @@ spec:
           description: Added hosts count
           priority: 1 # show in wide view
           jsonPath: .status.hostsAdded
-        - name: hosts-completed
-          type: integer
-          description: Completed hosts count
-          jsonPath: .status.hostsCompleted
         - name: hosts-deleted
           type: integer
           description: Hosts deleted count
           priority: 1 # show in wide view
           jsonPath: .status.hostsDeleted
-        - name: hosts-delete
-          type: integer
-          description: Hosts to be deleted count
-          priority: 1 # show in wide view
-          jsonPath: .status.hostsDelete
         - name: endpoint
           type: string
           description: Client access endpoint
@@ -3706,10 +3868,12 @@ spec:
                 normalized:
                   type: object
                   description: "Normalized resource requested"
+                  nullable: true
                   x-kubernetes-preserve-unknown-fields: true
                 normalizedCompleted:
                   type: object
                   description: "Normalized resource completed"
+                  nullable: true
                   x-kubernetes-preserve-unknown-fields: true
                 hostsWithTablesCreated:
                   type: array
@@ -3747,7 +3911,7 @@ spec:
                 stop: &TypeStringBool
                   type: string
                   description: |
-                    Allows to stop all ClickHouse clusters defined in a CHI.
+                    Allows to stop all ClickHouse Keeper clusters defined in a CHK.
                     Works as the following:
                      - When `stop` is `1` operator sets `Replicas: 0` in each StatefulSet. Thie leads to having all `Pods` and `Service` deleted. All PVCs are kept intact.
                      - When `stop` is `0` operator sets `Replicas: 1` and `Pod`s and `Service`s will created again and all retained PVCs will be attached to `Pod`s.
@@ -3991,6 +4155,11 @@ spec:
                             description: |
                               optional, allows define content of any setting file inside each `Pod` on current cluster during generate `ConfigMap` which will mount in `/etc/clickhouse-server/config.d/` or `/etc/clickhouse-server/conf.d/` or `/etc/clickhouse-server/users.d/`
                               override top-level `chi.spec.configuration.files`
+                          templates:
+                            <<: *TypeTemplateNames
+                            description: |
+                              optional, configuration of the templates names which will use for generate Kubernetes resources according to selected cluster
+                              override top-level `chi.spec.configuration.templates`
                           pdbManaged:
                             <<: *TypeStringBool
                             description: |
@@ -4008,11 +4177,6 @@ spec:
                               by specifying 0. This is a mutually exclusive setting with "minAvailable".
                             minimum: 0
                             maximum: 65535
-                          templates:
-                            <<: *TypeTemplateNames
-                            description: |
-                              optional, configuration of the templates names which will use for generate Kubernetes resources according to selected cluster
-                              override top-level `chi.spec.configuration.templates`
                           layout:
                             type: object
                             description: |
@@ -4361,7 +4525,7 @@ metadata:
   name: clickhouse-operator
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
 ---
 # Template Parameters:
 #
@@ -4387,7 +4551,7 @@ metadata:
   name: clickhouse-operator-${OPERATOR_NAMESPACE}
   #namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
 rules:
 
   #
@@ -4619,7 +4783,7 @@ metadata:
   name: clickhouse-operator-${OPERATOR_NAMESPACE}
   #namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -4641,7 +4805,7 @@ metadata:
   name: etc-clickhouse-operator-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
   config.yaml: |
@@ -4822,7 +4986,7 @@ data:
         # Specified in seconds.
         timeouts:
           # Timout to setup connection from the operator to ClickHouse instances. In seconds.
-          connect: 1
+          connect: 5
           # Timout to perform SQL query from the operator to ClickHouse instances. In seconds.
           query: 4
     
@@ -4863,7 +5027,6 @@ data:
                 quotas:
                 settings:
                 files:
-    
           - version: ">= 23.5"
             spec:
               configuration:
@@ -4892,6 +5055,10 @@ data:
           # Upon reaching this timeout metrics collection is aborted and no more metrics are collected in this cycle.
           # All collected metrics are returned.
           collect: 9
+        # Regexp to match tables in system database to fetch metrics from.
+        # Multiple tables can be matched using regexp. Matched tables are merged using merge() table function.
+        # Default is "^(metrics|custom_metrics)$" which fetches from both system.metrics and system.custom_metrics.
+        tablesRegexp: "^(metrics|custom_metrics)$"
     
     keeper:
       configuration:
@@ -4995,6 +5162,20 @@ data:
           #    Follow 'abort' path afterwards.
           # 3. ignore - ignore an error, pretend nothing happened, continue reconcile and move on to the next StatefulSet.
           onFailure: abort
+    
+        # Recreate StatefulSet scenario
+        recreate:
+          # What to do in case operator is in need to recreate StatefulSet?
+          # Possible options:
+          # 1. abort - abort the process, do nothing with the problematic StatefulSet, leave it as it is,
+          #    do not try to fix or delete or update it, just abort reconcile cycle.
+          #    Do not proceed to the next StatefulSet(s) and wait for an admin to assist.
+          # 2. recreate - proceed and recreate StatefulSet.
+    
+          # Triggered when PVC data loss or missing volumes are detected
+          onDataLoss: recreate
+          # Triggered when StatefulSet update fails or StatefulSet is not ready
+          onUpdateFailure: recreate
     
       # Reconcile Host scenario
       host:
@@ -5149,7 +5330,7 @@ metadata:
   name: etc-clickhouse-operator-confd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
 ---
@@ -5165,7 +5346,7 @@ metadata:
   name: etc-clickhouse-operator-configd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
   01-clickhouse-01-listen.xml: |
@@ -5264,7 +5445,7 @@ metadata:
   name: etc-clickhouse-operator-templatesd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
   001-templates.json.example: |
@@ -5364,7 +5545,7 @@ metadata:
   name: etc-clickhouse-operator-usersd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
   01-clickhouse-operator-profile.xml: |
@@ -5427,7 +5608,7 @@ metadata:
   name: etc-keeper-operator-confd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
 ---
@@ -5443,7 +5624,7 @@ metadata:
   name: etc-keeper-operator-configd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
   01-keeper-01-default-config.xml: |
@@ -5521,7 +5702,7 @@ metadata:
   name: etc-keeper-operator-templatesd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
   readme: |
@@ -5539,7 +5720,7 @@ metadata:
   name: etc-keeper-operator-usersd-files
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 data:
 ---
@@ -5547,7 +5728,7 @@ data:
 # Template parameters available:
 #   NAMESPACE=${OPERATOR_NAMESPACE}
 #   COMMENT=
-#   OPERATOR_VERSION=0.25.6
+#   OPERATOR_VERSION=0.26.0
 #   CH_USERNAME_SECRET_PLAIN=clickhouse_operator
 #   CH_PASSWORD_SECRET_PLAIN=clickhouse_operator_password
 #
@@ -5557,7 +5738,7 @@ metadata:
   name: clickhouse-operator
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 type: Opaque
 stringData:
@@ -5581,7 +5762,7 @@ metadata:
   name: clickhouse-operator
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 spec:
   replicas: 1
@@ -5796,7 +5977,7 @@ metadata:
   name: clickhouse-operator-metrics
   namespace: ${OPERATOR_NAMESPACE}
   labels:
-    clickhouse.altinity.com/chop: 0.25.6
+    clickhouse.altinity.com/chop: 0.26.0
     app: clickhouse-operator
 spec:
   ports:

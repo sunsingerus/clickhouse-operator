@@ -18,7 +18,7 @@ Operator settings are initialized in-order from 3 sources:
 * etc-clickhouse-operator-files configmap (also a part of default [clickhouse-operator-install-bundle.yaml][clickhouse-operator-install-bundle.yaml]
 * `ClickHouseOperatorConfiguration` resource. See [example][70-chop-config.yaml] for details.
 
-Next sources merges with the previous one. Changes to `etc-clickhouse-operator-files` are not monitored, but picked up if operator is restarted. Changes to `ClickHouseOperatorConfiguration` are monitored by an operator and applied immediately.
+Next sources merge with the previous ones. Currently the operator does not self-reconcile its own configuration: changes to `etc-clickhouse-operator-files` or `ClickHouseOperatorConfiguration` are read only at startup and require an operator restart to apply.
 
 `config.yaml` has following settings:
 
@@ -160,6 +160,32 @@ kind: "ClickHouseInstallation"
 spec:
   useTemplates:
     - name: clickhouse-stable
+...
+```
+
+#### Applying Changes from ClickHouseInstallationTemplates
+
+Changes applied to a ClickHouseInstallationTemaplte do not automatically trigger a reconcile of the ClickHouseInstallations using the template. This is by design and intended to preserve user control and prevent undesirable rollouts to ClickHouseInstallations. 
+
+To apply the changes to ClickHouseInstallations, update the spec.taskID:
+
+```
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+...
+spec:
+  taskID: "randomly-generated-string"
+...
+```
+
+> Note, ClickHouse settings applied to the ClickHouse server through `spec.configuration.settings` in a ClickHouseInstallationTemplate will not trigger a server restart whether or not the setting requires a server restart to be applied. To apply the settings and restart the server, you should also set `spec.restart` to `'RollingUpdate'`. RollingUpdate should be used sparingly. It is typically removed after usage to prevent unecessary restarts:
+
+```
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+...
+spec:
+  restart: "RollingUpdate"
 ...
 ```
 

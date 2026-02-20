@@ -1,6 +1,6 @@
 # altinity-clickhouse-operator
 
-![Version: 0.25.6](https://img.shields.io/badge/Version-0.25.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.25.6](https://img.shields.io/badge/AppVersion-0.25.6-informational?style=flat-square)
+![Version: 0.26.0](https://img.shields.io/badge/Version-0.26.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.26.0](https://img.shields.io/badge/AppVersion-0.26.0-informational?style=flat-square)
 
 Helm chart to deploy [altinity-clickhouse-operator](https://github.com/Altinity/clickhouse-operator).
 
@@ -75,10 +75,12 @@ crdHook:
 | commonLabels | object | `{}` | set of labels that will be applied to all the resources for the operator |
 | configs | object | check the `values.yaml` file for the config content (auto-generated from latest operator release) | clickhouse operator configs |
 | crdHook.affinity | object | `{}` | affinity for CRD installation job |
+| crdHook.annotations | object | `{}` | additional annotations for CRD installation job |
 | crdHook.enabled | bool | `true` | enable automatic CRD installation/update via pre-install/pre-upgrade hooks when disabled, CRDs must be installed manually using kubectl apply |
 | crdHook.image.pullPolicy | string | `"IfNotPresent"` | image pull policy for CRD installation job |
 | crdHook.image.repository | string | `"bitnami/kubectl"` | image repository for CRD installation job |
 | crdHook.image.tag | string | `"latest"` | image tag for CRD installation job |
+| crdHook.imagePullSecrets | list | `[]` | image pull secrets for CRD installation job possible value format `[{"name":"your-secret-name"}]`, check `kubectl explain pod.spec.imagePullSecrets` for details |
 | crdHook.nodeSelector | object | `{}` | node selector for CRD installation job |
 | crdHook.resources | object | `{}` | resource limits and requests for CRD installation job |
 | crdHook.tolerations | list | `[]` | tolerations for CRD installation job |
@@ -93,6 +95,7 @@ crdHook:
 | metrics.enabled | bool | `true` |  |
 | metrics.env | list | `[]` | additional environment variables for the deployment of metrics-exporter containers possible format value `[{"name": "SAMPLE", "value": "text"}]` |
 | metrics.image.pullPolicy | string | `"IfNotPresent"` | image pull policy |
+| metrics.image.registry | string | `""` | optional image registry prefix (e.g. 1234567890.dkr.ecr.us-east-1.amazonaws.com) |
 | metrics.image.repository | string | `"altinity/metrics-exporter"` | image repository |
 | metrics.image.tag | string | `""` | image tag (chart's appVersion value will be used if not set) |
 | metrics.resources | object | `{}` | custom resource configuration |
@@ -102,6 +105,7 @@ crdHook:
 | operator.containerSecurityContext | object | `{}` |  |
 | operator.env | list | `[]` | additional environment variables for the clickhouse-operator container in deployment possible format value `[{"name": "SAMPLE", "value": "text"}]` |
 | operator.image.pullPolicy | string | `"IfNotPresent"` | image pull policy |
+| operator.image.registry | string | `""` | optional image registry prefix (e.g. 1234567890.dkr.ecr.us-east-1.amazonaws.com) |
 | operator.image.repository | string | `"altinity/clickhouse-operator"` | image repository |
 | operator.image.tag | string | `""` | image tag (chart's appVersion value will be used if not set) |
 | operator.priorityClassName | string | "" | priority class name for the clickhouse-operator deployment, check `kubectl explain pod.spec.priorityClassName` for details |
@@ -122,7 +126,7 @@ crdHook:
 | serviceMonitor.clickhouseMetrics.metricRelabelings | list | `[]` |  |
 | serviceMonitor.clickhouseMetrics.relabelings | list | `[]` |  |
 | serviceMonitor.clickhouseMetrics.scrapeTimeout | string | `""` |  |
-| serviceMonitor.enabled | bool | `false` | ServiceMonitor Custom resource is created for a [prometheus-operator](https://github.com/prometheus-operator/prometheus-operator) In serviceMonitor will be created two endpoints ch-metrics on port 8888 and op-metrics # 9999. You can specify interval, scrapeTimeout, relabelings, metricRelabelings for each endpoint below |
+| serviceMonitor.enabled | bool | `false` | ServiceMonitor Custom resource is created for a [prometheus-operator](https://github.com/prometheus-operator/prometheus-operator) In serviceMonitor will be created two endpoints ch-metrics on port 8888 and op-metrics # 9999. Ypu can specify interval, scrapeTimeout, relabelings, metricRelabelings for each endpoint below |
 | serviceMonitor.operatorMetrics.interval | string | `"30s"` |  |
 | serviceMonitor.operatorMetrics.metricRelabelings | list | `[]` |  |
 | serviceMonitor.operatorMetrics.relabelings | list | `[]` |  |

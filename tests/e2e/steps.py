@@ -13,6 +13,7 @@ from testflows.core import current
 from testflows.asserts import error
 
 import e2e.kubectl as kubectl
+import e2e.settings as settings
 
 
 @TestStep(Given)
@@ -45,6 +46,9 @@ def create_test_namespace(self, force=False):
 
 @TestStep(Finally)
 def delete_test_namespace(self):
+    if settings.no_cleanup:
+        print(f"NO_CLEANUP is set, skipping namespace deletion: {self.context.test_namespace}")
+        return
     shell = get_shell()
     self.context.shell = shell
     util.delete_namespace(namespace=self.context.test_namespace, delete_chi=True)
@@ -167,7 +171,7 @@ def check_metrics_monitoring(
                 ns=operator_namespace,
             )
             if expect_metric != "":
-                lines = [m for m in out.splitlines() if m.startswith(expect_metric)]
+                lines = [m for m in out.splitlines() if m.startswith(expect_metric) and expect_labels in m]
                 if len(lines) > 0:
                     metric = lines[0]
                     print(f"have: {metric}")

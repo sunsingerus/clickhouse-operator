@@ -16,9 +16,6 @@ package clickhouse
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -42,35 +39,22 @@ import (
 // Exporter implements prometheus.Collector interface
 type Exporter struct {
 	collectorTimeout time.Duration
-
-	// chInstallations maps CHI name to list of hostnames (of string type) of this installation
-	chInstallations chInstallationsIndex
-
-	mutex               sync.RWMutex
-	toRemoveFromWatched sync.Map
+	registry         *CRRegistry
 }
 
 // Type compatibility
 var _ prometheus.Collector = &Exporter{}
 
 // NewExporter returns a new instance of Exporter type
-func NewExporter(collectorTimeout time.Duration) *Exporter {
+func NewExporter(registry *CRRegistry, collectorTimeout time.Duration) *Exporter {
 	return &Exporter{
-		chInstallations:  make(map[string]*metrics.WatchedCR),
+		registry:         registry,
 		collectorTimeout: collectorTimeout,
 	}
 }
 
-// getWatchedCHIs
-func (e *Exporter) getWatchedCHIs() []*metrics.WatchedCR {
-	return e.chInstallations.slice()
-}
-
 // Collect implements prometheus.Collector Collect method
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	// Run cleanup on each collect
-	e.cleanup()
-
 	if ch == nil {
 		log.Warning("Prometheus channel is closed. Unable to write metrics")
 		return
@@ -83,23 +67,19 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		log.V(1).Infof("Collect completed [%s]", time.Since(start))
 	}()
 
-	// Collect should have timeout
+	// Collection process should have limited duration
 	ctx, cancel := context.WithTimeout(context.Background(), e.collectorTimeout)
 	defer cancel()
-
-	// This method may be called concurrently and must therefore be implemented in a concurrency safe way
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
 
 	log.V(1).Infof("Launching host collectors [%s]", time.Since(start))
 
 	var wg = sync.WaitGroup{}
-	e.chInstallations.walk(func(chi *metrics.WatchedCR, _ *metrics.WatchedCluster, host *metrics.WatchedHost) {
+	e.registry.Walk(func(cr *metrics.WatchedCR, _ *metrics.WatchedCluster, host *metrics.WatchedHost) {
 		wg.Add(1)
-		go func(ctx context.Context, chi *metrics.WatchedCR, host *metrics.WatchedHost, ch chan<- prometheus.Metric) {
+		go func(ctx context.Context, cr *metrics.WatchedCR, host *metrics.WatchedHost, ch chan<- prometheus.Metric) {
 			defer wg.Done()
-			e.collectHostMetrics(ctx, chi, host, ch)
-		}(ctx, chi, host, ch)
+			e.collectHostMetrics(ctx, cr, host, ch)
+		}(ctx, cr, host, ch)
 	})
 	wg.Wait()
 }
@@ -109,45 +89,17 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(e, ch)
 }
 
-// enqueueToRemoveFromWatched
-func (e *Exporter) enqueueToRemoveFromWatched(chi *metrics.WatchedCR) {
-	e.toRemoveFromWatched.Store(chi, struct{}{})
+// collectHostMetrics collects metrics from one host and writes them into chan
+func (e *Exporter) collectHostMetrics(ctx context.Context, chi *metrics.WatchedCR, host *metrics.WatchedHost, c chan<- prometheus.Metric) {
+	collector := NewCollector(
+		e.newHostFetcher(host),
+		NewCHIPrometheusWriter(c, chi, host),
+	)
+	collector.CollectHostMetrics(ctx, host)
 }
 
-// cleanup cleans all pending for cleaning
-func (e *Exporter) cleanup() {
-	// Clean up all pending for cleaning CHIs
-	log.V(2).Info("Starting cleanup")
-	e.toRemoveFromWatched.Range(func(key, value interface{}) bool {
-		switch key.(type) {
-		case *metrics.WatchedCR:
-			e.toRemoveFromWatched.Delete(key)
-			e.removeFromWatched(key.(*metrics.WatchedCR))
-			log.V(1).Infof("Removed ClickHouseInstallation (%s/%s) from Exporter", key.(*metrics.WatchedCR).Name, key.(*metrics.WatchedCR).Namespace)
-		}
-		return true
-	})
-	log.V(2).Info("Completed cleanup")
-}
-
-// removeFromWatched deletes record from Exporter.chInstallation map identified by chiName key
-func (e *Exporter) removeFromWatched(chi *metrics.WatchedCR) {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	log.V(1).Infof("Remove ClickHouseInstallation (%s/%s)", chi.Namespace, chi.Name)
-	e.chInstallations.remove(chi.IndexKey())
-}
-
-// updateWatched updates Exporter.chInstallation map with values from chInstances slice
-func (e *Exporter) updateWatched(chi *metrics.WatchedCR) {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	log.V(1).Infof("Update ClickHouseInstallation (%s/%s): %s", chi.Namespace, chi.Name, chi)
-	e.chInstallations.set(chi.IndexKey(), chi)
-}
-
-// newFetcher returns new Metrics Fetcher for specified host
-func (e *Exporter) newHostFetcher(host *metrics.WatchedHost) *ClickHouseMetricsFetcher {
+// newHostFetcher returns new Metrics Fetcher for specified host
+func (e *Exporter) newHostFetcher(host *metrics.WatchedHost) *MetricsFetcher {
 	// Make base cluster connection params
 	clusterConnectionParams := clickhouse.NewClusterConnectionParamsFromCHOpConfig(chop.Config())
 	// Adjust base cluster connection params with per-host props
@@ -167,208 +119,10 @@ func (e *Exporter) newHostFetcher(host *metrics.WatchedHost) *ClickHouseMetricsF
 		clusterConnectionParams.Port = int(host.HTTPSPort)
 	}
 
-	return NewClickHouseFetcher(clusterConnectionParams.NewEndpointConnectionParams(host.Hostname))
-}
-
-// collectHostMetrics collects metrics from one host and writes them into chan
-func (e *Exporter) collectHostMetrics(ctx context.Context, chi *metrics.WatchedCR, host *metrics.WatchedHost, c chan<- prometheus.Metric) {
-	fetcher := e.newHostFetcher(host)
-	writer := NewCHIPrometheusWriter(c, chi, host)
-
-	wg := sync.WaitGroup{}
-	wg.Add(6)
-	go func(ctx context.Context, host *metrics.WatchedHost, fetcher *ClickHouseMetricsFetcher, writer *CHIPrometheusWriter) {
-		e.collectHostSystemMetrics(ctx, host, fetcher, writer)
-		wg.Done()
-	}(ctx, host, fetcher, writer)
-	go func(ctx context.Context, host *metrics.WatchedHost, fetcher *ClickHouseMetricsFetcher, writer *CHIPrometheusWriter) {
-		e.collectHostSystemPartsMetrics(ctx, host, fetcher, writer)
-		wg.Done()
-	}(ctx, host, fetcher, writer)
-	go func(ctx context.Context, host *metrics.WatchedHost, fetcher *ClickHouseMetricsFetcher, writer *CHIPrometheusWriter) {
-		e.collectHostSystemReplicasMetrics(ctx, host, fetcher, writer)
-		wg.Done()
-	}(ctx, host, fetcher, writer)
-	go func(ctx context.Context, host *metrics.WatchedHost, fetcher *ClickHouseMetricsFetcher, writer *CHIPrometheusWriter) {
-		e.collectHostMutationsMetrics(ctx, host, fetcher, writer)
-		wg.Done()
-	}(ctx, host, fetcher, writer)
-	go func(ctx context.Context, host *metrics.WatchedHost, fetcher *ClickHouseMetricsFetcher, writer *CHIPrometheusWriter) {
-		e.collectHostSystemDisksMetrics(ctx, host, fetcher, writer)
-		wg.Done()
-	}(ctx, host, fetcher, writer)
-	go func(ctx context.Context, host *metrics.WatchedHost, fetcher *ClickHouseMetricsFetcher, writer *CHIPrometheusWriter) {
-		e.collectHostDetachedPartsMetrics(ctx, host, fetcher, writer)
-		wg.Done()
-	}(ctx, host, fetcher, writer)
-	wg.Wait()
-}
-
-func (e *Exporter) collectHostSystemMetrics(
-	ctx context.Context,
-	host *metrics.WatchedHost,
-	fetcher *ClickHouseMetricsFetcher,
-	writer *CHIPrometheusWriter,
-) {
-	log.V(1).Infof("Querying system metrics for host %s", host.Hostname)
-	start := time.Now()
-	metrics, err := fetcher.getClickHouseQueryMetrics(ctx)
-	elapsed := time.Since(start)
-	if err == nil {
-		log.V(1).Infof("Extracted [%s] %d system metrics for host %s", elapsed, len(metrics), host.Hostname)
-		writer.WriteMetrics(metrics)
-		writer.WriteOKFetch("system.metrics")
-	} else {
-		// In case of an error fetching data from clickhouse store CHI name in e.cleanup
-		log.Warningf("Error [%s] querying system.metrics for host %s err: %s", elapsed, host.Hostname, err)
-		writer.WriteErrorFetch("system.metrics")
-	}
-}
-
-func (e *Exporter) collectHostSystemPartsMetrics(
-	ctx context.Context,
-	host *metrics.WatchedHost,
-	fetcher *ClickHouseMetricsFetcher,
-	writer *CHIPrometheusWriter,
-) {
-	log.V(1).Infof("Querying table sizes for host %s", host.Hostname)
-	start := time.Now()
-	systemPartsData, err := fetcher.getClickHouseSystemParts(ctx)
-	elapsed := time.Since(start)
-	if err == nil {
-		log.V(1).Infof("Extracted [%s] %d table sizes for host %s", elapsed, len(systemPartsData), host.Hostname)
-		writer.WriteTableSizes(systemPartsData)
-		writer.WriteOKFetch("table sizes")
-		writer.WriteSystemParts(systemPartsData)
-		writer.WriteOKFetch("system parts")
-	} else {
-		// In case of an error fetching data from clickhouse store CHI name in e.cleanup
-		log.Warningf("Error [%s] querying system.parts for host %s err: %s", elapsed, host.Hostname, err)
-		writer.WriteErrorFetch("table sizes")
-		writer.WriteErrorFetch("system parts")
-	}
-}
-
-func (e *Exporter) collectHostSystemReplicasMetrics(
-	ctx context.Context,
-	host *metrics.WatchedHost,
-	fetcher *ClickHouseMetricsFetcher,
-	writer *CHIPrometheusWriter,
-) {
-	log.V(1).Infof("Querying system replicas for host %s", host.Hostname)
-	start := time.Now()
-	systemReplicas, err := fetcher.getClickHouseQuerySystemReplicas(ctx)
-	elapsed := time.Since(start)
-	if err == nil {
-		log.V(1).Infof("Extracted [%s] %d system replicas for host %s", elapsed, len(systemReplicas), host.Hostname)
-		writer.WriteSystemReplicas(systemReplicas)
-		writer.WriteOKFetch("system.replicas")
-	} else {
-		// In case of an error fetching data from clickhouse store CHI name in e.cleanup
-		log.Warningf("Error [%s] querying system.replicas for host %s err: %s", elapsed, host.Hostname, err)
-		writer.WriteErrorFetch("system.replicas")
-	}
-}
-
-func (e *Exporter) collectHostMutationsMetrics(
-	ctx context.Context,
-	host *metrics.WatchedHost,
-	fetcher *ClickHouseMetricsFetcher,
-	writer *CHIPrometheusWriter,
-) {
-	log.V(1).Infof("Querying mutations for host %s", host.Hostname)
-	start := time.Now()
-	mutations, err := fetcher.getClickHouseQueryMutations(ctx)
-	elapsed := time.Since(start)
-	if err == nil {
-		log.V(1).Infof("Extracted [%s] %d mutations for %s", elapsed, len(mutations), host.Hostname)
-		writer.WriteMutations(mutations)
-		writer.WriteOKFetch("system.mutations")
-	} else {
-		// In case of an error fetching data from clickhouse store CHI name in e.cleanup
-		log.Warningf("Error [%s] querying system.mutations for host %s err: %s", elapsed, host.Hostname, err)
-		writer.WriteErrorFetch("system.mutations")
-	}
-}
-
-func (e *Exporter) collectHostSystemDisksMetrics(
-	ctx context.Context,
-	host *metrics.WatchedHost,
-	fetcher *ClickHouseMetricsFetcher,
-	writer *CHIPrometheusWriter,
-) {
-	log.V(1).Infof("Querying disks for host %s", host.Hostname)
-	start := time.Now()
-	disks, err := fetcher.getClickHouseQuerySystemDisks(ctx)
-	elapsed := time.Since(start)
-	if err == nil {
-		log.V(1).Infof("Extracted [%s] %d disks for host %s", elapsed, len(disks), host.Hostname)
-		writer.WriteSystemDisks(disks)
-		writer.WriteOKFetch("system.disks")
-	} else {
-		// In case of an error fetching data from clickhouse store CHI name in e.cleanup
-		log.Warningf("Error [%s] querying system.disks for host %s err: %s", elapsed, host.Hostname, err)
-		writer.WriteErrorFetch("system.disks")
-	}
-}
-
-func (e *Exporter) collectHostDetachedPartsMetrics(
-	ctx context.Context,
-	host *metrics.WatchedHost,
-	fetcher *ClickHouseMetricsFetcher,
-	writer *CHIPrometheusWriter,
-) {
-	log.V(1).Infof("Querying detached parts for host %s", host.Hostname)
-	start := time.Now()
-	detachedParts, err := fetcher.getClickHouseQueryDetachedParts(ctx)
-	elapsed := time.Since(start)
-	if err == nil {
-		log.V(1).Infof("Extracted [%s] %d detached parts info for host %s", elapsed, len(detachedParts), host.Hostname)
-		writer.WriteDetachedParts(detachedParts)
-		writer.WriteOKFetch("system.detached_parts")
-	} else {
-		// In case of an error fetching data from clickhouse store CHI name in e.cleanup
-		log.Warningf("Error [%s] querying system.detached_parts for host %s err: %s", elapsed, host.Hostname, err)
-		writer.WriteErrorFetch("system.detached_parts")
-	}
-}
-
-// getWatchedCHI serves HTTP request to get list of watched CHIs
-func (e *Exporter) getWatchedCHI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(e.getWatchedCHIs())
-}
-
-// fetchCHI decodes chi from the request
-func (e *Exporter) fetchCHI(r *http.Request) (*metrics.WatchedCR, error) {
-	chi := &metrics.WatchedCR{}
-	if err := json.NewDecoder(r.Body).Decode(chi); err == nil {
-		if chi.IsValid() {
-			return chi, nil
-		}
-	}
-
-	return nil, fmt.Errorf("unable to parse CHI from request")
-}
-
-// updateWatchedCHI serves HTTPS request to add CHI to the list of watched CHIs
-func (e *Exporter) updateWatchedCHI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if chi, err := e.fetchCHI(r); err == nil {
-		e.updateWatched(chi)
-	} else {
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
-	}
-}
-
-// deleteWatchedCHI serves HTTP request to delete CHI from the list of watched CHIs
-func (e *Exporter) deleteWatchedCHI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if chi, err := e.fetchCHI(r); err == nil {
-		e.enqueueToRemoveFromWatched(chi)
-	} else {
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
-	}
+	return NewMetricsFetcher(
+		clusterConnectionParams.NewEndpointConnectionParams(host.Hostname),
+		chop.Config().ClickHouse.Metrics.TablesRegexp,
+	)
 }
 
 // DiscoveryWatchedCHIs discovers all ClickHouseInstallation objects available for monitoring and adds them to watched list
@@ -391,7 +145,7 @@ func (e *Exporter) DiscoveryWatchedCHIs(kubeClient kube.Interface, chopClient *c
 }
 
 func (e *Exporter) processDiscoveredCR(kubeClient kube.Interface, chi *api.ClickHouseInstallation) {
-	if e.shouldSkipDiscoveredCR(chi) {
+	if !e.shouldWatchCR(chi) {
 		log.V(1).Infof("Skip discovered CHI: %s/%s", chi.Namespace, chi.Name)
 		return
 	}
@@ -403,15 +157,15 @@ func (e *Exporter) processDiscoveredCR(kubeClient kube.Interface, chi *api.Click
 
 	normalized, _ := normalizer.CreateTemplated(chi, normalizerCommon.NewOptions[api.ClickHouseInstallation]())
 
-	watchedCHI := metrics.NewWatchedCR(normalized)
-	e.updateWatched(watchedCHI)
+	watchedCR := metrics.NewWatchedCR(normalized)
+	e.registry.AddCR(watchedCR)
 }
 
-func (e *Exporter) shouldSkipDiscoveredCR(chi *api.ClickHouseInstallation) bool {
+func (e *Exporter) shouldWatchCR(chi *api.ClickHouseInstallation) bool {
 	if chi.IsStopped() {
-		log.V(1).Infof("CHI %s/%s is stopped, skip it", chi.Namespace, chi.Name)
-		return true
+		log.V(1).Infof("CHI %s/%s is stopped, unable to watch it", chi.Namespace, chi.Name)
+		return false
 	}
 
-	return false
+	return true
 }

@@ -108,13 +108,13 @@ def test_metrics_exporter_chi(self):
                             "hosts": [
                                 {
                                     "name": "0-0",
-                                    "hostname": "chi-test-017-multi-version-default-0-0.test.svc.cluster.local",
+                                    "hostname": "chi-test-017-multi-version-default-0-0.test.svc.cluster.local.",
                                     "tcpPort": 9000,
                                     "httpPort": 8123
                                 },
                                 {
                                     "name": "1-0",
-                                    "hostname": "chi-test-017-multi-version-default-1-0.test.svc.cluster.local",
+                                    "hostname": "chi-test-017-multi-version-default-1-0.test.svc.cluster.local.",
                                     "tcpPort": 9000,
                                     "httpPort": 8123
                                 }

@@ -146,7 +146,8 @@ def wait_clickhouse_cluster_ready(chi):
                     pod=pod,
                 )
                 for host in chi["status"]["fqdns"]:
-                    svc_short_name = host.replace(f".{current().context.test_namespace}.svc.cluster.local", "")
+                    svc_short_name = host.replace(f".{current().context.test_namespace}.svc.cluster.local.", "")
+                    svc_short_name = svc_short_name.replace(f".{current().context.test_namespace}.svc.cluster.local", "")
                     if svc_short_name not in cluster_response:
                         with Then("Not ready, sleep 5 seconds"):
                             all_pods_ready = False
